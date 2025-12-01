@@ -1,12 +1,10 @@
 {
-    "name": "phpApp",
+    "name": "php-app/phpapp",
     "description": "phpApp",
 	"license": "proprietary",
     "type": "project",
     "require": {
         "php": ">=8.2",
-		"php-app/phpapp": "dev-main"
-		
     },
      "repositories": [
         {
@@ -15,12 +13,6 @@
         }
     ],
 	"prefer-stable": true,
-    "autoload": {
-		"psr-4": {
-        },
-		"files": [
-        ]
-    },
 	"config": {
         "vendor-dir": "system"
     }
