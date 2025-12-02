@@ -283,9 +283,9 @@ function loadInstalled() {
       for (const [name, info] of Object.entries(res.data)) {
         data.push({
           name: name,
-          description: '', // optional: aus Packagist nachladen
+          description: info.description, // optional: aus Packagist nachladen
           url: 'https://packagist.org/packages/' + name,
-          author: '',
+          author: info.author,
           installed: true,
           installed_version: info.version,
           update_available: info.update_available,

@@ -92,10 +92,13 @@ private function getInstalledTypes(): array
     $json = json_decode(file_get_contents($lockFile), true);
     $types = [];
     foreach (($json['packages'] ?? []) as $pkg) {
-        $types[$pkg['name']] = $pkg['type'] ?? '';
+        $types[$pkg['name']]['type'] = $pkg['type'] ?? '';
+		$types[$pkg['name']]['description'] = $pkg['description'] ?? '';
+		$types[$pkg['name']]['author'] = $pkg['authors'][0]['name'] ?? '';
     }
     foreach (($json['packages-dev'] ?? []) as $pkg) {
-        $types[$pkg['name']] = $pkg['type'] ?? '';
+        $types[$pkg['name']]['type'] = $pkg['type'] ?? '';
+		$types[$pkg['name']]['description'] = $pkg['description'] ?? '';
     }
     return $types;
 }
@@ -116,7 +119,9 @@ private function getInstalledTypes(): array
                 'version' => $version,
                 'latest' => $latest,
                 'update_available' => $latest !== $version,
-				'type' => $types[$name] ?? ''
+				'type' => $types[$name]['type'] ?? '',
+				'description' => $types[$name]['description'] ?? '',
+				'author' => $types[$name]['author'] ?? '',
             ];
         }
         return $installed;
