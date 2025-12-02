@@ -1,160 +1,162 @@
 <?php
-/**
- * setup.php
- * Bootstrap + jQuery Oberfläche + AJAX-Endpunkte für:
- * - Projektliste (GitHub/GitLab, Topic=phpapp2 mit optionalem Suchfilter)
- * - Tag/Version-Nachladen pro Projekt
- * - Installieren, Aktualisieren, Reparieren, Deinstallieren via ComposerManager
- * - Log-Anzeige aus setup/log.txt
- *
- * Voraussetzung:
- * - classes/Platform.php
- * - classes/ComposerManager.php
- */
+// setup.php
 
 declare(strict_types=1);
-error_reporting(E_ALL);
-ini_set('display_errors', '1');
 
+// Simple autoloader for our classes
+spl_autoload_register(function ($class) {
+    // Nur die beiden gewünschten Klassen berücksichtigen
+    $allowed = ['Packagist', 'ComposerManager'];
+    if (!in_array($class, $allowed, true)) {
+        return;
+    }
+
+    $base = __DIR__ . DIRECTORY_SEPARATOR . 'setup' . DIRECTORY_SEPARATOR;
+    $file = $base . $class . '.php';
+
+    if (is_file($file)) {
+        require_once $file;
+    }
+});
+
+
+// Constants
 define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'setup');
 define('SYSTEM_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system');
-define('CLASSES_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'setup');
 define('COMPOSER_PHAR', SETUP_DIR . DIRECTORY_SEPARATOR . 'composer.phar');
-define('COMPOSER_LOG', SETUP_DIR . DIRECTORY_SEPARATOR . 'log.txt');
-define('COMPOSER_JSON', __DIR__ . DIRECTORY_SEPARATOR . 'composer.json');
+define('LOG_FILE', SETUP_DIR . DIRECTORY_SEPARATOR . 'log.txt');
 
-require_once CLASSES_DIR . DIRECTORY_SEPARATOR . 'Platform.php';
-require_once CLASSES_DIR . DIRECTORY_SEPARATOR . 'ComposerManager.php';
-
-// Initialisierung (Composer/Ordner)
-$pm = new Platform();
-$pm->ensureDirectoriesAndComposer();
-
-/**
- * Hilfsfunktion: sichere Eingaben (Basic)
- */
-function in($key, $default = null) {
-    return isset($_REQUEST[$key]) ? trim((string)$_REQUEST[$key]) : $default;
+// Ensure folders exist and composer.phar is present
+function ensureEnvironment(): void {
+    if (!is_dir(SETUP_DIR)) {
+        mkdir(SETUP_DIR, 0775, true);
+    }
+    if (!is_dir(SYSTEM_DIR)) {
+        mkdir(SYSTEM_DIR, 0775, true);
+    }
+    if (!is_file(COMPOSER_PHAR)) {
+        // Download latest stable composer.phar
+        // Official installer JSON points to stable; using static URL simplifies.
+        $url = 'https://getcomposer.org/download/latest-stable/composer.phar';
+        $ctx = stream_context_create(['http' => ['timeout' => 30]]);
+        $data = @file_get_contents($url, false, $ctx);
+        if ($data === false) {
+            // Fallback: try main composer.phar URL
+            $url2 = 'https://getcomposer.org/composer.phar';
+            $data = @file_get_contents($url2, false, $ctx);
+        }
+        if ($data === false) {
+            // Write a minimal error log
+            file_put_contents(LOG_FILE, "[Error] Unable to download composer.phar.\n");
+        } else {
+            file_put_contents(COMPOSER_PHAR, $data);
+        }
+    }
+    if (!is_file(LOG_FILE)) {
+        file_put_contents(LOG_FILE, "");
+    }
 }
 
-/**
- * AJAX Router
- * WICHTIG: wir senden per POST, daher auf $_REQUEST prüfen, nicht $_GET
- */
-if (isset($_REQUEST['ajax']) && $_REQUEST['ajax'] === '1') {
+
+
+// Initialize
+ensureEnvironment();
+
+// Route AJAX actions
+$action = $_GET['action'] ?? $_POST['action'] ?? null;
+if ($action) {
     header('Content-Type: application/json; charset=utf-8');
+    $packagist = new Packagist();
+    $composer = new ComposerManager(COMPOSER_PHAR, LOG_FILE);
 
     try {
-        $platformFilter = in('platform', 'all'); // github/gitlab/all
-        $topic = in('topic', 'phpapp2');
-        $search = in('search', '');
-        $visibility = in('visibility', 'public'); // optional
-
-        $action = in('action', '');
-        $pm = new Platform();
-        $cm = new ComposerManager(COMPOSER_JSON, COMPOSER_PHAR, COMPOSER_LOG, SYSTEM_DIR);
-
         switch ($action) {
-
-            case 'listProjects':
-                // Liste abrufen
-                $projects = $pm->getProjectList($platformFilter, $topic, $visibility, $search);
-
-                // Statusinformationen ergänzen
-                foreach ($projects as &$p) {
-                    $p['status'] = $cm->getProjectStatus($p);
-                    $p['installed_version'] = $cm->getInstalledVersion($p);
-                    $p['has_update'] = $cm->hasUpdate($p);
+            case 'search':
+                $tags = trim($_GET['tags'] ?? '');
+                $query = trim($_GET['q'] ?? '');
+                $list = $packagist->getProjectList($tags === 'none' ? '' : $tags, $query);
+                // Merge install status/version info
+                $installed = $composer->getInstalledPackages();
+                foreach ($list as &$pkg) {
+                    $name = $pkg['name'] ?? '';
+                    if (isset($installed[$name])) {
+                        $pkg['installed'] = true;
+                        $pkg['installed_version'] = $installed[$name]['version'] ?? '';
+                        $pkg['update_available'] = $installed[$name]['update_available'] ?? false;
+                    } else {
+                        $pkg['installed'] = false;
+                        $pkg['installed_version'] = '';
+                        $pkg['update_available'] = false;
+                    }
                 }
-                unset($p);
-
-                // Installierte zuerst
-                usort($projects, function ($a, $b) {
-                    $sa = $a['status'] === 'installed' ? 0 : 1;
-                    $sb = $b['status'] === 'installed' ? 0 : 1;
-                    if ($sa === $sb) return strcmp($a['title'], $b['title']);
-                    return $sa <=> $sb;
-                });
-
-                echo json_encode(['ok' => true, 'projects' => $projects]);
+                echo json_encode(['ok' => true, 'data' => $list]);
                 break;
 
-            case 'getProjectTags':
-                $platform = in('platform', 'github');
-                $id = in('id', '');
-                if (!$id) throw new Exception('id missing');
-                $tags = $pm->getTags($platform, $id);
-                echo json_encode(['ok' => true, 'tags' => $tags]);
+            case 'versions':
+                $package = trim($_GET['package'] ?? '');
+                if ($package === '') {
+                    echo json_encode(['ok' => false, 'error' => 'Missing package']);
+                    break;
+                }
+                $info = $packagist->getProject($package);
+                $versions = $info['versions'] ?? [];
+                echo json_encode(['ok' => true, 'versions' => $versions, 'wiki' => $info['wiki'] ?? null, 'url' => $info['url'] ?? null, 'author' => $info['author'] ?? null, 'description' => $info['description'] ?? null]);
                 break;
 
             case 'install':
-                $platform = in('platform', 'github');
-                $id = in('id', '');
-                $version = in('version', ''); // tag optional
-                if (!$id) throw new Exception('id missing');
-                $proj = $pm->getProject($platform, $id);
-                $res = $cm->install($proj, $version);
-                echo json_encode($res);
+                $packages = $_POST['packages'] ?? [];
+                // packages: [{name, version}] array
+                if (!is_array($packages) || empty($packages)) {
+                    echo json_encode(['ok' => false, 'error' => 'No packages provided']);
+                    break;
+                }
+                $result = $composer->installPackages($packages);
+                echo json_encode($result);
                 break;
 
             case 'update':
-                $platform = in('platform', 'github');
-                $id = in('id', '');
-                $version = in('version', '');
-                if (!$id) throw new Exception('id missing');
-                $proj = $pm->getProject($platform, $id);
-                $res = $cm->update($proj, $version);
-                echo json_encode($res);
+                $packages = $_POST['packages'] ?? [];
+                if (!is_array($packages) || empty($packages)) {
+                    echo json_encode(['ok' => false, 'error' => 'No packages provided']);
+                    break;
+                }
+                $result = $composer->updatePackages($packages);
+                echo json_encode($result);
                 break;
 
-            case 'repair':
-                $platform = in('platform', 'github');
-                $id = in('id', '');
-                if (!$id) throw new Exception('id missing');
-                $proj = $pm->getProject($platform, $id);
-                $res = $cm->repair($proj);
-                echo json_encode($res);
+            case 'remove':
+                $packages = $_POST['packages'] ?? [];
+                if (!is_array($packages) || empty($packages)) {
+                    echo json_encode(['ok' => false, 'error' => 'No packages provided']);
+                    break;
+                }
+                $result = $composer->removePackages($packages);
+                echo json_encode($result);
                 break;
 
-            case 'uninstall':
-                $platform = in('platform', 'github');
-                $id = in('id', '');
-                if (!$id) throw new Exception('id missing');
-                $proj = $pm->getProject($platform, $id);
-                $res = $cm->uninstall($proj);
-                echo json_encode($res);
+            case 'log':
+                $content = @file_get_contents(LOG_FILE);
+                echo json_encode(['ok' => true, 'log' => $content ?: '']);
                 break;
 
-            case 'getWikiList':
-                $platform = in('platform', 'github');
-                $id = in('id', '');
-                $res = $pm->getWikiList($platform, $id);
-                echo json_encode(['ok' => true, 'pages' => $res]);
-                break;
-
-            case 'getWikiPage':
-                $platform = in('platform', 'github');
-                $id = in('id', '');
-                $pageId = in('pageId', '');
-                $res = $pm->getWikiPage($platform, $id, $pageId);
-                echo json_encode(['ok' => true, 'content' => $res]);
-                break;
-
-            case 'getLog':
-                $log = file_exists(COMPOSER_LOG) ? file_get_contents(COMPOSER_LOG) : '';
-                echo json_encode(['ok' => true, 'log' => $log]);
+            case 'installed':
+                $installed = $composer->getInstalledPackages();
+                echo json_encode(['ok' => true, 'data' => $installed]);
                 break;
 
             default:
-                echo json_encode(['ok' => false, 'error' => 'unknown action']);
+                echo json_encode(['ok' => false, 'error' => 'Unknown action']);
         }
-    } catch (Throwable $e) {
+    } catch (\Throwable $e) {
+        file_put_contents(LOG_FILE, "[Exception] " . $e->getMessage() . "\n", FILE_APPEND);
         echo json_encode(['ok' => false, 'error' => $e->getMessage()]);
     }
     exit;
 }
+
+// From here: HTML UI
 ?>
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
     <meta charset="utf-8">
@@ -167,278 +169,253 @@ if (isset($_REQUEST['ajax']) && $_REQUEST['ajax'] === '1') {
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <style>
-        body { background: #f6f8fa; }
-        .status-installed { color: #198754; font-weight: 600; }   /* Grün */
-        .status-update    { color: #ffc107; font-weight: 600; }   /* Gelb */
-        .status-error     { color: #dc3545; font-weight: 600; }   /* Rot */
-        .table-fixed { height: 60vh; overflow-y: auto; }
-        .avatar { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; }
-        .logbox { background: #111; color: #0f0; font-family: monospace; padding: 10px; border-radius: 6px; height: 20vh; overflow-y: auto; }
-        .btn-wiki { margin-left: 8px; }
-        .sticky-top-custom { position: sticky; top: 0; background: #fff; z-index: 9; padding: 12px 0; }
+        body { background: #f8f9fa; }
+        .status-installed { color: #198754; font-weight: 600; }
+        .status-update { color: #ffc107; font-weight: 600; }
+        .status-error { color: #dc3545; font-weight: 600; }
+        .table-fixed { height: 50vh; overflow-y: auto; }
+        .log-box { height: 25vh; overflow-y: auto; background:#111; color:#0f0; font-family: monospace; padding: 1rem; border-radius: 0.25rem; white-space: pre-wrap;}
+        .pkg-link { text-decoration: none; }
+        .wiki-btn { margin-left: .5rem; }
     </style>
 </head>
 <body>
-<div class="container-fluid py-3">
-    <div class="sticky-top-custom">
-        <div class="row g-2 align-items-end">
-            <div class="col-md-3">
-                <label class="form-label">Suche</label>
-                <input type="text" class="form-control" id="search" placeholder="Freie Begriffe...">
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Plattform</label>
-                <select class="form-select" id="platform">
-                    <option value="all">Alle</option>
-                    <option value="github">GitHub</option>
-                    <option value="gitlab">GitLab</option>
-                </select>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label">Topic</label>
-                <input type="text" class="form-control" id="topic" value="phpapp2" placeholder="phpapp2 (leer = ohne Einschränkung)">
-            </div>
-            <div class="col-md-3">
-                <!-- Fix: type="button" -->
-                <button type="button" class="btn btn-primary w-100" id="btnRefresh">Projekte laden</button>
-            </div>
+<div class="container py-4">
+    <h1 class="mb-4">Setup</h1>
+
+    <div class="card mb-3">
+        <div class="card-body">
+            <form id="searchForm" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Suche</label>
+                    <input type="text" class="form-control" id="searchQuery" placeholder="Suchbegriffe...">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tags</label>
+                    <select class="form-select" id="searchTags">
+                        <option value="none">Nichts</option>
+                        <option value="phpapp-modul">phpapp-modul</option>
+                        <option value="phpapp-template">phpapp-template</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">Suchen</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <div class="mt-3">
-        <div class="table-responsive table-fixed">
-            <table class="table table-striped align-middle">
-                <thead class="table-light">
-                <tr>
-                    <th>Auswahl</th>
-                    <th>Bild</th>
-                    <th>Projekt</th>
-                    <th>Autor</th>
-                    <th>Plattform</th>
-                    <th>Beschreibung</th>
-                    <th>Status</th>
-                    <th>Version</th>
-                    <th>Aktionen</th>
-                </tr>
-                </thead>
-                <tbody id="projectRows">
-                <tr><td colspan="9">Keine Daten geladen.</td></tr>
-                </tbody>
-            </table>
-        </div>
+    <div class="card mb-3">
+        <div class="card mb-3">
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs" id="resultsTabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active" id="search-tab" data-bs-toggle="tab" data-bs-target="#searchPane" type="button" role="tab">Suche</button>
+      </li>
+      <li class="nav-item">
+        <button class="nav-link" id="installed-tab" data-bs-toggle="tab" data-bs-target="#installedPane" type="button" role="tab">Installierte</button>
+      </li>
+    </ul>
+  </div>
+  <div class="card-body tab-content">
+    <!-- Suche -->
+    <div class="tab-pane fade show active" id="searchPane" role="tabpanel">
+      <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-success btn-sm" id="btnInstall">Installieren</button>
+      </div>
+      <div class="table-fixed">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Status</th><th>Version</th>
+            </tr>
+          </thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Installierte -->
+    <div class="tab-pane fade" id="installedPane" role="tabpanel">
+      <div class="d-flex justify-content-end mb-2">
+        <button class="btn btn-warning btn-sm" id="btnUpdate">Aktualisieren</button>
+        <button class="btn btn-danger btn-sm" id="btnRemove">Deinstallieren</button>
+      </div>
+      <div class="table-fixed">
+        <table class="table table-hover align-middle">
+          <thead class="table-light">
+            <tr>
+              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Status</th><th>Version</th>
+            </tr>
+          </thead>
+          <tbody id="installedBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
     </div>
 
-    <div class="mt-3">
-        <h5>Log anzeigen</h5>
-        <div class="logbox" id="logbox"></div>
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Log anzeigen</span>
+            <button class="btn btn-outline-secondary btn-sm" id="btnRefreshLog">Aktualisieren</button>
+        </div>
+        <div class="card-body">
+            <div id="logBox" class="log-box"></div>
+        </div>
     </div>
 </div>
 
 <script>
-function api(params) {
-    return $.ajax({
-        url: 'setup.php',
-        method: 'POST',
-        data: Object.assign({ ajax: '1' }, params),
-        dataType: 'json'
-    });
+function statusBadge(pkg) {
+    if (pkg.installed) {
+        if (pkg.update_available) return '<span class="status-update">Update verfügbar</span>';
+        return '<span class="status-installed">Installiert (' + (pkg.installed_version || '') + ')</span>';
+    }
+    return '<span class="text-muted">Nicht installiert</span>';
 }
 
-function refreshProjects() {
-    const platform = $('#platform').val();
-    const topic = $('#topic').val();
-    const search = $('#search').val();
+function loadInstalled() {
+  $.getJSON('setup.php', {action: 'installed'}, function(res){
+    if (res.ok) {
+      const data = [];
+      // res.data ist ein Objekt {name: {version, latest, update_available}}
+      for (const [name, info] of Object.entries(res.data)) {
+        data.push({
+          name: name,
+          description: '', // optional: aus Packagist nachladen
+          url: 'https://packagist.org/packages/' + name,
+          author: '',
+          installed: true,
+          installed_version: info.version,
+          update_available: info.update_available
+        });
+      }
+      renderRows(data, '#installedBody');
+    }
+  });
+}
 
-    api({ action: 'listProjects', platform, topic, search }).done(res => {
-        if (!res.ok) {
-            $('#projectRows').html(`<tr><td colspan="9" class="text-danger">${res.error || 'Fehler'}</td></tr>`);
-            return;
-        }
-        const rows = [];
-        if (res.projects.length === 0) {
-            rows.push('<tr><td colspan="9">Keine Projekte gefunden.</td></tr>');
-        } else {
-            res.projects.forEach(p => {
-                const statusClass =
-                    p.status === 'installed' ? 'status-installed' :
-                    (p.has_update ? 'status-update' :
-                    (p.status === 'error' ? 'status-error' : ''));
-                const wikiBtn = p.has_wiki ? `<button class="btn btn-sm btn-outline-secondary btn-wiki" data-platform="${p.platform}" data-id="${p.id}">Wiki</button>` : '';
-                const dropdown = `<select class="form-select form-select-sm version-select" data-platform="${p.platform}" data-id="${p.id}">
-                                    <option value="">Version laden...</option>
-                                  </select>`;
-                rows.push(`
-                    <tr data-id="${p.id}" data-platform="${p.platform}">
-                        <td><input type="checkbox" class="form-check-input project-check"></td>
-                        <td><img src="${p.avatar_url || ''}" alt="avatar" class="avatar"></td>
-                        <td>
-                            <a href="${p.web_url}" target="_blank" class="fw-semibold">${p.title}</a>
-                            ${wikiBtn}
-                        </td>
-                        <td>${p.author || '-'}</td>
-                        <td>${p.platform}</td>
-                        <td>${p.description || ''}</td>
-                        <td class="${statusClass}">
-                            ${p.status}
-                            ${p.has_update ? '<span title="Update verfügbar">⬆️</span>' : ''}
-                            ${p.installed_version ? ' (installiert: ' + p.installed_version + ')' : ''}
-                        </td>
-                        <td>${dropdown}</td>
-                        <td>
-                            <div class="btn-group btn-group-sm">
-                                <button class="btn btn-success btn-install">Installieren</button>
-                                <button class="btn btn-warning btn-update">Aktualisieren</button>
-                                <button class="btn btn-secondary btn-repair">Reparieren</button>
-                                <button class="btn btn-danger btn-uninstall">Deinstallieren</button>
-                            </div>
-                        </td>
-                    </tr>
-                `);
+function loadVersions(packageName, selectEl) {
+    $.getJSON('setup.php', {action: 'versions', package: packageName}, function(res) {
+        if (res.ok) {
+            const versions = res.versions || [];
+            $(selectEl).empty();
+            versions.forEach(function(v) {
+                const label = v.version || v;
+                $(selectEl).append($('<option>').val(label).text(label));
             });
-        }
-        $('#projectRows').html(rows.join(''));
-    }).fail((xhr, status, err) => {
-        $('#projectRows').html(`<tr><td colspan="9" class="text-danger">AJAX Fehler: ${status} ${err}</td></tr>`);
-    });
-}
-
-// Event‑Handler nur einmal global binden
-$(function(){
-    // … andere Aktionen …
-
-    // Checkbox → Tags nachladen
-    $('#projectRows').on('change', '.project-check', function(){
-        const $tr = $(this).closest('tr');
-        if (this.checked) {
-            const $sel = $tr.find('.version-select');
-            // Nur laden, wenn noch nicht befüllt
-            if ($sel.children().length <= 1) {
-                const platform = $sel.data('platform');
-                const id = $sel.data('id');
-                api({ action: 'getProjectTags', platform, id }).done(r => {
-                    if (r.ok) {
-                        $sel.html(r.tags.length ? r.tags.map(t => `<option value="${t}">${t}</option>`).join('') : '<option value="">Keine Tags</option>');
-                    } else {
-                        $sel.html('<option value="">Fehler beim Laden</option>');
-                    }
-                });
+            // Attach wiki button if available
+            const wikiBtn = $(selectEl).closest('tr').find('.wiki-btn');
+            if (res.wiki) {
+                wikiBtn.removeClass('d-none').attr('href', res.wiki);
+            } else {
+                wikiBtn.addClass('d-none').attr('href', '#');
             }
         }
     });
+}
+
+function renderRows(items, targetSelector) {
+  const tbody = $(targetSelector);
+  tbody.empty();
+  items.forEach(function(pkg) {
+    const tr = $('<tr>');
+    const checkbox = $('<input type="checkbox" class="form-check-input pkg-check">').data('name', pkg.name);
+    const versionSelect = $('<select class="form-select form-select-sm version-select" style="min-width:140px;"></select>');
+    tr.append($('<td>').append(checkbox));
+    const projectLink = $('<a class="pkg-link" target="_blank">').attr('href', pkg.url || '#').text(pkg.name || '');
+    const wikiBtn = $('<a class="btn btn-outline-info btn-sm wiki-btn d-none" target="_blank">Wiki</a>');
+    tr.append($('<td>').append(projectLink).append(wikiBtn));
+    tr.append($('<td>').text(pkg.author || ''));
+    tr.append($('<td>').text(pkg.description || ''));
+    tr.append($('<td>').html(statusBadge(pkg)));
+    tr.append($('<td>').append(versionSelect));
+    tbody.append(tr);
+    loadVersions(pkg.name, versionSelect);
+  });
+}
+
+function search() {
+    const q = $('#searchQuery').val() || '';
+    const tags = $('#searchTags').val() || 'none';
+    $.getJSON('setup.php', {action: 'search', q: q, tags: tags}, function(res) {
+        if (res.ok) {
+            // Put installed first
+            const data = res.data || [];
+            data.sort(function(a,b){
+                return (b.installed ? 1 : 0) - (a.installed ? 1 : 0);
+            });
+            renderRows(data, '#resultsBody');
+        }
+    });
+}
+
+function selectedPackages(targetSelector) {
+  const pkgs = [];
+  $(targetSelector + ' .pkg-check:checked').each(function(){
+    const name = $(this).data('name');
+    const version = $(this).closest('tr').find('.version-select').val() || '';
+    pkgs.push({name: name, version: version});
+  });
+  return pkgs;
+}
+
+function refreshLog() {
+    $.getJSON('setup.php', {action: 'log'}, function(res){
+        if (res.ok) {
+            $('#logBox').text(res.log);
+            const box = document.getElementById('logBox');
+            box.scrollTop = box.scrollHeight;
+        }
+    });
+}
+//setInterval(refreshLog, 2000);
+
+$(function(){
+    search();
+    $('#searchForm').on('submit', function(e){ e.preventDefault(); search(); });
+    $('#btnRefreshLog').on('click', function(){ refreshLog(); });
+
+    $('#btnInstall').on('click', function(){
+        const pkgs = selectedPackages('#resultsBody');
+        if (pkgs.length === 0) return;
+        $.ajax({
+            url: 'setup.php?action=install',
+            method: 'POST',
+            data: {packages: pkgs},
+            success: function(res){
+                refreshLog();
+                search();
+				loadInstalled();
+            }
+        });
+    });
+
+    $('#btnUpdate').on('click', function(){
+	  const pkgs = selectedPackages('#installedBody');
+	  if (pkgs.length === 0) return;
+	  $.post('setup.php?action=update', {packages: pkgs}, function(){
+		refreshLog();
+		loadInstalled();
+	  }, 'json');
+	});
+
+    $('#btnRemove').on('click', function(){
+	  const pkgs = selectedPackages('#installedBody');
+	  if (pkgs.length === 0) return;
+	  $.post('setup.php?action=remove', {packages: pkgs}, function(){
+		refreshLog();
+		loadInstalled();
+	  }, 'json');
+	});
 });
 
-function appendLog() {
-    api({ action: 'getLog' }).done(res => {
-		if (res.ok) {
-			const formatted = (res.log || '').replace(/\n/g, '<br>');
-			$('#logbox').html(formatted);
-			const logBox = document.getElementById('logbox');
-			logBox.scrollTop = logBox.scrollHeight;
-		}
-	});
-}
-
 $(function(){
-    // Button klick
-    $('#btnRefresh').on('click', refreshProjects);
-
-	$('#search').on('keyup', function(e){
-		if (e.keyCode === 13) {
-			refreshProjects();
-		}
-	});
-
-    // Aktionen
-    $('#projectRows').on('click', '.btn-install', function(){
-        const $tr = $(this).closest('tr');
-        const platform = $tr.data('platform');
-        const id = $tr.data('id');
-        const version = $tr.find('.version-select').val() || '';
-        api({ action: 'install', platform, id, version }).done(res => {
-            appendLog();
-            refreshProjects();
-        });
-    });
-
-    $('#projectRows').on('click', '.btn-update', function(){
-        const $tr = $(this).closest('tr');
-        const platform = $tr.data('platform');
-        const id = $tr.data('id');
-        const version = $tr.find('.version-select').val() || '';
-        api({ action: 'update', platform, id, version }).done(res => {
-            appendLog();
-            refreshProjects();
-        });
-    });
-
-    $('#projectRows').on('click', '.btn-repair', function(){
-        const $tr = $(this).closest('tr');
-        const platform = $tr.data('platform');
-        const id = $tr.data('id');
-        api({ action: 'repair', platform, id }).done(res => {
-            appendLog();
-            refreshProjects();
-        });
-    });
-
-    $('#projectRows').on('click', '.btn-uninstall', function(){
-        const $tr = $(this).closest('tr');
-        const platform = $tr.data('platform');
-        const id = $tr.data('id');
-        api({ action: 'uninstall', platform, id }).done(res => {
-            appendLog();
-            refreshProjects();
-        });
-    });
-
-    // Wiki Button
-    $('#projectRows').on('click', '.btn-wiki', function(){
-        const platform = $(this).data('platform');
-        const id = $(this).data('id');
-        api({ action: 'getWikiList', platform, id }).done(res => {
-            if (res.ok) {
-                const items = res.pages.map(p => `<li><a href="#" class="wiki-link" data-platform="${platform}" data-id="${id}" data-pageid="${p.id}">${p.title}</a></li>`).join('');
-                const html = `<div class="alert alert-info"><strong>Wiki Seiten:</strong><ul>${items}</ul></div>`;
-                $(this).closest('td').append(html);
-            }
-        });
-    });
-
-    // Wiki Page
-    $(document).on('click', '.wiki-link', function(e){
-        e.preventDefault();
-        const platform = $(this).data('platform');
-        const id = $(this).data('id');
-        const pageId = $(this).data('pageid');
-        api({ action: 'getWikiPage', platform, id, pageId }).done(res => {
-            if (res.ok) {
-                const modalHtml = `
-                <div class="modal fade" id="wikiModal" tabindex="-1">
-                  <div class="modal-dialog modal-lg modal-dialog-scrollable">
-                    <div class="modal-content">
-                      <div class="modal-header">
-                        <h5 class="modal-title">Wiki</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                      </div>
-                      <div class="modal-body">
-                        ${res.content}
-                      </div>
-                    </div>
-                  </div>
-                </div>`;
-                $('body').append(modalHtml);
-                const modal = new bootstrap.Modal(document.getElementById('wikiModal'));
-                modal.show();
-                $('#wikiModal').on('hidden.bs.modal', function(){ $(this).remove(); });
-            }
-        });
-    });
-
-    // Initialer Load
-    refreshProjects();
-
-    // Log Intervall (alle 3s). Zum Deaktivieren: Zeile auskommentieren.
-    setInterval(appendLog, 3000);
+  search();
+  loadInstalled();
+  // Tabs wechseln: optional beim Aktivieren neu laden
+  $('#installed-tab').on('shown.bs.tab', function(){ loadInstalled(); });
 });
 </script>
 </body>

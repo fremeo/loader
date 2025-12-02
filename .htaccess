@@ -1,0 +1,84 @@
+php_value memory_limit 5000M
+php_flag magic_quotes_gpc off
+php_value max_input_vars 1000000
+php_value max_execution_time 60
+php_value post_max_size 400M
+
+Options +FollowSymLinks -Indexes
+#Options +SymLinksIfOwnerMatch
+
+RewriteEngine on
+#RewriteBase /
+
+
+#von www zur nicht www umleiten.
+RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
+
+#SSL ON!
+RewriteCond %{REMOTE_ADDR} !=127.0.0.1 
+RewriteCond %{REMOTE_ADDR} !=::1
+RewriteCond %{HTTP_HOST} !^127\.0\.0\.1(?::\d+)?$
+RewriteCond %{HTTPS} !=on
+RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+
+#START Zugriff auf Public Dateien ====================
+#z.B. domain.cc/public/[plugin-name]/tpl/test.js
+RewriteCond %{REQUEST_URI} \.(txt|pdf|doc|js|css|html|otf|eot|svg|ttf|woff|woff2)$
+RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
+#END Zugriff auf Public Dateien ======================
+
+#FILE START ===============
+#ToDo: die RewriteCond weiche für localhost oder für Domain, funktioniert nicht!!
+#Bild aus dem Cache ausgeben
+#file/[Text_]ab12345_12x12.jpg													data_c/PLATFORM/shop/file/ab12345_12x12.jpg
+RewriteRule ^file/(.*)_(.*)_(.*)x(.*)\.(.*)$									data_c/PLATFORM/$1/file/$2_$3x$4.$5 [L] #Datei ausgabe nach der File ID 
+RewriteRule ^file/(.*)_(.*)x(.*)\.(.*)$											data_c/PLATFORM/shop/file/$1_$2x$3.$4 [L] #Datei ausgabe nach der File ID 
+
+#Bild neu generieren wen es im cach nicht gefunden wurde
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^data_c/PLATFORM/shop/file/(.*)_(.*)x(.*)\.(.*)$					get_file.php?D[_F][FILE][W][0][ID]=$1&D[_X]=$2&D[_Y]=$3&D[_TYPE]=$4 [L] #nach File ID
+#FILE ENDE ================
+
+
+#Seo URL
+#Führt die RewriteRule nur dann aus, wenn keine Dateiendung übergeben wurde. Gilt für SEO-URLs oder nur für Parameter an Index
+###RewriteCond %{REQUEST_URI} !\.[a-zA-Z0-9]+$	 #Mus geprüft werden, welche Ordner zugelasen sind für den Zugriff, ggf. nur data_c, wie es mit Template datein css, jpg, aussieht?
+
+# setup.php direkt ausliefern (nicht umschreiben)
+RewriteRule ^setup\.php$ - [L]
+
+##RewriteCond %{REQUEST_URI} !^(/file/|/data_c/) #Es soll nicht auf /file/ und /data_c/ reagieren
+RewriteCond %{REQUEST_URI} !^/file/
+RewriteCond %{REQUEST_URI} !^/data_c/
+RewriteRule ^(.*)?(.*)$			index.php?D[SEO_URL]=$1&$2 [QSA,L] #[QSA]
+
+
+
+#FILE Icon Start================
+RewriteRule ^favicon.ico$									view/account/template/core/favicon/favicon.ico [L,QSA]
+RewriteRule ^apple-touch-icon.png$							view/account/template/core/favicon/apple-touch-icon.png [L,QSA]
+#FILE Icon Ende ================
+
+
+
+#Performance Optimierung Start ==============
+# Komprimieren der Inhalte mit Deflate nach Dateiendungen. 1. und 2. zusammen
+<IfModule mod_deflate.c>
+	<FilesMatch "\.(js|jpg|jpeg|gif|png|css)$">
+		ExpiresActive on
+		ExpiresDefault "access plus 1 month"
+		SetOutputFilter DEFLATE
+	</FilesMatch>
+</IfModule>
+
+<IfModule mod_headers.c>
+	<FilesMatch "\.(js|css)$">
+		Header set Cache-Control "max-age=604800, public"
+	</FilesMatch>
+
+	<FilesMatch "\.(gif|png|jpg|jpeg|pdf|ico)$">
+		Header set Cache-Control "max-age=604800, public"
+	</FilesMatch>
+</IfModule>

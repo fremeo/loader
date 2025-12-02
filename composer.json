@@ -4,7 +4,11 @@
     "license": "proprietary",
     "type": "project",
     "require": {
-        "php": ">=8.0"
+        "php": ">=8.0",
+        "smarty/smarty": "v5.5.0",
+        "fortawesome/font-awesome": "7.1.0",
+        "mpdf/mpdf": "v8.2.7",
+        "phpmailer/phpmailer": "v7.0.1"
     },
     "prefer-stable": true,
     "config": {
