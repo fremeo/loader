@@ -205,7 +205,7 @@ if ($action) {
         </div>
     </div>
 
-    <div class="card mb-3">
+ 
         <div class="card mb-3">
   <div class="card-header">
     <ul class="nav nav-tabs card-header-tabs" id="resultsTabs" role="tablist">
@@ -227,7 +227,7 @@ if ($action) {
         <table class="table table-hover align-middle">
           <thead class="table-light">
             <tr>
-              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Status</th><th>Version</th>
+              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Package type</th><th>Status</th><th>Version</th>
             </tr>
           </thead>
           <tbody id="resultsBody"></tbody>
@@ -244,7 +244,7 @@ if ($action) {
         <table class="table table-hover align-middle">
           <thead class="table-light">
             <tr>
-              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Status</th><th>Version</th>
+              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Package type</th><th>Status</th><th>Version</th>
             </tr>
           </thead>
           <tbody id="installedBody"></tbody>
@@ -253,7 +253,7 @@ if ($action) {
     </div>
   </div>
 </div>
-    </div>
+    
 
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -288,7 +288,8 @@ function loadInstalled() {
           author: '',
           installed: true,
           installed_version: info.version,
-          update_available: info.update_available
+          update_available: info.update_available,
+		  type : info.type,
         });
       }
       renderRows(data, '#installedBody');
@@ -329,6 +330,7 @@ function renderRows(items, targetSelector) {
     tr.append($('<td>').append(projectLink).append(wikiBtn));
     tr.append($('<td>').text(pkg.author || ''));
     tr.append($('<td>').text(pkg.description || ''));
+	tr.append($('<td>').text(pkg.type || ''));
     tr.append($('<td>').html(statusBadge(pkg)));
     tr.append($('<td>').append(versionSelect));
     tbody.append(tr);

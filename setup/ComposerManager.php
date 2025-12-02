@@ -84,6 +84,22 @@ private function detectPhpBinary(): string
         @file_put_contents($this->logFile, $text, FILE_APPEND);
     }
 
+private function getInstalledTypes(): array
+{
+    $lockFile = __DIR__ . '/../composer.lock'; // Pfad anpassen
+    if (!is_file($lockFile)) return [];
+
+    $json = json_decode(file_get_contents($lockFile), true);
+    $types = [];
+    foreach (($json['packages'] ?? []) as $pkg) {
+        $types[$pkg['name']] = $pkg['type'] ?? '';
+    }
+    foreach (($json['packages-dev'] ?? []) as $pkg) {
+        $types[$pkg['name']] = $pkg['type'] ?? '';
+    }
+    return $types;
+}
+
     public function getInstalledPackages(): array
     {
         // Use composer show --installed --format=json
@@ -91,6 +107,7 @@ private function detectPhpBinary(): string
         if (!$res['ok']) return [];
         $json = json_decode($res['out'], true);
         $installed = [];
+		$types = $this->getInstalledTypes();
         foreach (($json['installed'] ?? []) as $pkg) {
             $name = $pkg['name'] ?? '';
             $version = $pkg['version'] ?? '';
@@ -98,7 +115,8 @@ private function detectPhpBinary(): string
             $installed[$name] = [
                 'version' => $version,
                 'latest' => $latest,
-                'update_available' => $latest !== $version
+                'update_available' => $latest !== $version,
+				'type' => $types[$name] ?? ''
             ];
         }
         return $installed;

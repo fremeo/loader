@@ -34,6 +34,7 @@ class Packagist
                 'downloads' => $r['downloads'] ?? 0,
                 'favers' => $r['favers'] ?? 0,
                 'author' => $r['vendor'] ?? '', // vendor maps roughly to author/org
+				'type' => $this->getPackageType($r['name']),
                 'installed' => false,
                 'installed_version' => '',
                 'update_available' => false,
@@ -65,6 +66,7 @@ class Packagist
         $desc = $meta['package']['description'] ?? '';
         $url = $meta['package']['repository'] ?? ('https://packagist.org/packages/' . $package);
         $authors = $meta['package']['authors'][0]['name'] ?? '';
+		$type = $meta['package']['type'] ?? '';
         $wiki = null; // Not standardized; could be from extra, if present
         if (isset($meta['package']['extra']['wiki'])) {
             $wiki = $meta['package']['extra']['wiki'];
@@ -79,7 +81,20 @@ class Packagist
             'description' => $desc,
             'url' => $url,
             'author' => $authors,
-            'wiki' => $wiki
+            'wiki' => $wiki,
+			'type' => $meta['package']['type'] ?? ''
         ];
     }
+	
+	private function getPackageType(string $package): string
+{
+    // Detail-Endpoint liefert den Typ
+    $metaUrl = 'https://packagist.org/packages/' . $package . '.json';
+    $meta = $this->fetchJson($metaUrl);
+
+    if (isset($meta['package']['type'])) {
+        return $meta['package']['type'];
+    }
+    return '';
+}
 }
