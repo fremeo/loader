@@ -6,12 +6,6 @@
     "require": {
         "php": ">=8.0"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://gitlab.com/php-app/phpapp.git"
-        }
-    ],
     "prefer-stable": true,
     "config": {
         "vendor-dir": "system"
