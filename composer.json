@@ -3,12 +3,9 @@
     "description": "A simple setup tool and framework for PHP projects: installation, package management, and configuration all in one.",
     "license": "proprietary",
     "type": "project",
+    "keywords": ["phpapp"],
     "require": {
-        "php": ">=8.0",
-        "smarty/smarty": "v5.5.0",
-        "fortawesome/font-awesome": "7.1.0",
-        "mpdf/mpdf": "v8.2.7",
-        "phpmailer/phpmailer": "v7.0.1"
+        "php": ">=8.0"
     },
     "prefer-stable": true,
     "config": {
