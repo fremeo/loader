@@ -1,6 +1,6 @@
 {
     "name": "papp/phpapp",
-    "description": "1A simple setup tool and framework for PHP projects: installation, package management, and configuration all in one.",
+    "description": "A simple setup tool and framework for PHP projects: installation, package management, and configuration all in one.",
     "license": "proprietary",
     "type": "project",
     "keywords": ["phpapp"],
