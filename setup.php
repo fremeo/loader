@@ -74,7 +74,8 @@ if ($action) {
             case 'search':
                 $tags = trim($_GET['tags'] ?? '');
                 $query = trim($_GET['q'] ?? '');
-                $list = $packagist->getProjectList($tags === 'none' ? '' : $tags, $query);
+				$type  = trim($_GET['type'] ?? '');
+                $list = $packagist->getProjectList($tags === 'none' ? '' : $tags, $query, $type);
                 // Merge install status/version info
                 $installed = $composer->getInstalledPackages();
                 foreach ($list as &$pkg) {
@@ -186,18 +187,27 @@ if ($action) {
     <div class="card mb-3">
         <div class="card-body">
             <form id="searchForm" class="row g-3">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <label class="form-label">Suche</label>
                     <input type="text" class="form-control" id="searchQuery" placeholder="Suchbegriffe...">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Tags</label>
                     <select class="form-select" id="searchTags">
                         <option value="none">Nichts</option>
-                        <option value="phpapp-modul">phpapp-modul</option>
+						<option value="phpapp">phpapp</option>
+                        <option value="phpapp-module">phpapp-module</option>
                         <option value="phpapp-template">phpapp-template</option>
                     </select>
                 </div>
+				<div class="col-md-3">
+				  <label for="searchType" class="form-label">Type</label>
+				  <select id="searchType" class="form-select">
+					<option value="">keine</option>
+					<option value="phpapp-module">phpapp-module</option>
+					<option value="phpapp-template">phpapp-template</option>
+				  </select>
+				</div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">Suchen</button>
                 </div>
@@ -227,7 +237,7 @@ if ($action) {
         <table class="table table-hover align-middle">
           <thead class="table-light">
             <tr>
-              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Package type</th><th>Status</th><th>Version</th>
+              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Type</th><th>Status</th><th>Version</th>
             </tr>
           </thead>
           <tbody id="resultsBody"></tbody>
@@ -244,7 +254,7 @@ if ($action) {
         <table class="table table-hover align-middle">
           <thead class="table-light">
             <tr>
-              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Package type</th><th>Status</th><th>Version</th>
+              <th>Auswahl</th><th>Projekt</th><th>Autor</th><th>Beschreibung</th><th>Type</th><th>Status</th><th>Version</th>
             </tr>
           </thead>
           <tbody id="installedBody"></tbody>
@@ -341,7 +351,8 @@ function renderRows(items, targetSelector) {
 function search() {
     const q = $('#searchQuery').val() || '';
     const tags = $('#searchTags').val() || 'none';
-    $.getJSON('setup.php', {action: 'search', q: q, tags: tags}, function(res) {
+	const type = $('#searchType').val() || ''; 
+    $.getJSON('setup.php', {action: 'search', q: q, tags: tags, type: type}, function(res) {
         if (res.ok) {
             // Put installed first
             const data = res.data || [];

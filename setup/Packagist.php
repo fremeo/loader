@@ -16,11 +16,12 @@ class Packagist
         return is_array($json) ? $json : [];
     }
 
-    public function getProjectList(string $tags, string $search): array
+    public function getProjectList(string $tags, string $search, string $type = ''): array
     {
         $query = [];
         if ($search !== '') $query[] = 'q=' . urlencode($search);
         if ($tags !== '') $query[] = 'tags=' . urlencode($tags);
+		if ($type !== '')   $query[] = 'type=' . urlencode($type);
         $url = 'https://packagist.org/search.json' . (empty($query) ? '' : ('?' . implode('&', $query)));
         $res = $this->fetchJson($url);
 
