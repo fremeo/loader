@@ -46,6 +46,7 @@ private function detectPhpBinary(): string
 	
     private function runComposer(array $args): array
     {
+		chdir(dirname(__DIR__)); // Projektwurzel
         // Composer runs in project root (composer.json must exist there)
         $cmd = escapeshellcmd($this->phpBin) . ' ' . escapeshellarg($this->composerPhar);
         foreach ($args as $a) {
@@ -103,25 +104,41 @@ private function detectPhpBinary(): string
 		return $types;
 	}
 
-	public function dumpAutoload(): array
+	public function reInstall(): array
 	{
 		$vendorDir = $this->getVendorDir();
-
-		// composer Ordner löschen
 		$composerDir = $vendorDir . '/composer';
-		if (is_dir($composerDir)) { 
+
+		// 1. composer/ Ordner löschen
+		if (is_dir($composerDir)) {
 			$this->deleteDirectory($composerDir);
 		}
 
-		// autoload.php löschen
+		// 2. autoload.php löschen
 		$autoloadFile = $vendorDir . '/autoload.php';
 		if (is_file($autoloadFile)) {
 			unlink($autoloadFile);
 		}
 
-		// Autoloader neu generieren
-		return $this->runComposer(['dump-autoload', '-o']);
+		// 3. composer.lock löschen (optional, aber empfohlen)
+		$lockFile = dirname(__DIR__) . '/composer.lock';
+		if (is_file($lockFile)) {
+			unlink($lockFile);
+		}
+
+		// 4. Pakete neu installieren (erzeugt installed.php)
+		$installResult = $this->runComposer(['install']);
+
+		// 5. Autoloader optimiert neu erzeugen
+		$autoloadResult = $this->runComposer(['dump-autoload', '-o']);
+
+		return [
+			'install' => $installResult,
+			'autoload' => $autoloadResult
+		];
 	}
+
+	
 	
 	private function getVendorDir(): string
 	{
@@ -140,6 +157,7 @@ private function detectPhpBinary(): string
 	}
 	
 	// Hilfsfunktion zum rekursiven Löschen
+	
 	private function deleteDirectory(string $dir): void
 	{
 		if (!is_dir($dir)) return;
