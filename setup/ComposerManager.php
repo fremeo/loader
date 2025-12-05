@@ -84,25 +84,78 @@ private function detectPhpBinary(): string
         @file_put_contents($this->logFile, $text, FILE_APPEND);
     }
 
-private function getInstalledTypes(): array
-{
-    $lockFile = __DIR__ . '/../composer.lock'; // Pfad anpassen
-    if (!is_file($lockFile)) return [];
+	private function getInstalledTypes(): array
+	{
+		$lockFile = __DIR__ . '/../composer.lock'; // Pfad anpassen
+		if (!is_file($lockFile)) return [];
 
-    $json = json_decode(file_get_contents($lockFile), true);
-    $types = [];
-    foreach (($json['packages'] ?? []) as $pkg) {
-        $types[$pkg['name']]['type'] = $pkg['type'] ?? '';
-		$types[$pkg['name']]['description'] = $pkg['description'] ?? '';
-		$types[$pkg['name']]['author'] = $pkg['authors'][0]['name'] ?? '';
-    }
-    foreach (($json['packages-dev'] ?? []) as $pkg) {
-        $types[$pkg['name']]['type'] = $pkg['type'] ?? '';
-		$types[$pkg['name']]['description'] = $pkg['description'] ?? '';
-    }
-    return $types;
-}
+		$json = json_decode(file_get_contents($lockFile), true);
+		$types = [];
+		foreach (($json['packages'] ?? []) as $pkg) {
+			$types[$pkg['name']]['type'] = $pkg['type'] ?? '';
+			$types[$pkg['name']]['description'] = $pkg['description'] ?? '';
+			$types[$pkg['name']]['author'] = $pkg['authors'][0]['name'] ?? '';
+		}
+		foreach (($json['packages-dev'] ?? []) as $pkg) {
+			$types[$pkg['name']]['type'] = $pkg['type'] ?? '';
+			$types[$pkg['name']]['description'] = $pkg['description'] ?? '';
+		}
+		return $types;
+	}
 
+	public function dumpAutoload(): array
+	{
+		$vendorDir = $this->getVendorDir();
+
+		// composer Ordner löschen
+		$composerDir = $vendorDir . '/composer';
+		if (is_dir($composerDir)) { 
+			$this->deleteDirectory($composerDir);
+		}
+
+		// autoload.php löschen
+		$autoloadFile = $vendorDir . '/autoload.php';
+		if (is_file($autoloadFile)) {
+			unlink($autoloadFile);
+		}
+
+		// Autoloader neu generieren
+		return $this->runComposer(['dump-autoload', '-o']);
+	}
+	
+	private function getVendorDir(): string
+	{
+		$composerJson = dirname(__DIR__) . '/composer.json';
+
+		if (is_file($composerJson)) {
+			$data = json_decode(file_get_contents($composerJson), true);
+
+			if (isset($data['config']['vendor-dir'])) {
+				return dirname(__DIR__) . '/' . $data['config']['vendor-dir'];
+			}
+		}
+
+		// Standard-Fallback
+		return dirname(__DIR__) . '/vendor';
+	}
+	
+	// Hilfsfunktion zum rekursiven Löschen
+	private function deleteDirectory(string $dir): void
+	{
+		if (!is_dir($dir)) return;
+
+		$items = array_diff(scandir($dir), ['.', '..']);
+		foreach ($items as $item) {
+			$path = $dir . '/' . $item;
+			if (is_dir($path)) {
+				$this->deleteDirectory($path);
+			} else {
+				unlink($path);
+			}
+		}
+		rmdir($dir);
+	}
+	
     public function getInstalledPackages(): array
     {
         // Use composer show --installed --format=json
@@ -138,6 +191,7 @@ private function getInstalledTypes(): array
             $pkgArg = escapeshellarg($name . ($version !== '' ? ':' . $version : ''));
             $args[] = $pkgArg;
         }
+		
         $result = $this->runComposer($args);
         return $result;
     }

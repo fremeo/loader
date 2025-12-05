@@ -144,7 +144,10 @@ if ($action) {
                 $installed = $composer->getInstalledPackages();
                 echo json_encode(['ok' => true, 'data' => $installed]);
                 break;
-
+			case 'dumpautoload':
+				$result = $composer->dumpAutoload();
+				echo json_encode($result);
+				break;
             default:
                 echo json_encode(['ok' => false, 'error' => 'Unknown action']);
         }
@@ -268,6 +271,8 @@ if ($action) {
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>Log anzeigen</span>
+			
+			<button class="btn btn-outline-secondary btn-sm" id="btnDumpAutoload">autoload neu bauen</button>
             <button class="btn btn-outline-secondary btn-sm" id="btnRefreshLog">Aktualisieren</button>
         </div>
         <div class="card-body">
@@ -422,6 +427,12 @@ $(function(){
 		loadInstalled();
 	  }, 'json');
 	});
+	
+	$('#btnDumpAutoload').on('click', function() {
+    $.getJSON('setup.php', {action: 'dumpautoload'}, function(res){
+        //alert('Autoloader neu generiert.');
+    });
+});
 });
 
 $(function(){
