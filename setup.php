@@ -11,7 +11,7 @@ spl_autoload_register(function ($class) {
         return;
     }
 
-    $base = __DIR__ . DIRECTORY_SEPARATOR . 'setup' . DIRECTORY_SEPARATOR;
+    $base = __DIR__ . DIRECTORY_SEPARATOR . 'system/papp/framework/system/core' . DIRECTORY_SEPARATOR;
     $file = $base . $class . '.php';
 
     if (is_file($file)) {
