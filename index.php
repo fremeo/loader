@@ -1,4 +1,5 @@
 <?php
+define('PROJECT_ROOT', __DIR__);
 
 $D = $_REQUEST['D'] ?? null; //Data Array
 $SD = $_REQUEST['S'] ?? null; // security Data array
@@ -6,13 +7,19 @@ $D['R'] = $R = $_REQUEST['R'] ?? null; //Request Array
 $D['C'] = $C = null; //Klassen Instanz Array
 $D['SESSION'] = null; 
 
+#Load framework
+require_once "system/papp/framework/init.php";
+require_once "system/papp/framework/start.php";
+#end
 
+/*
 include('system/autoload.php');
 
-$base = __DIR__; 
+
+
 
 // 1. Module scannen und Metadaten sammeln
-foreach (glob($base . '/system' . '/*/*', GLOB_ONLYDIR) as $moduleDir) {
+foreach (glob(PROJECT_ROOT . '/system' . '/*-/*', GLOB_ONLYDIR) as $moduleDir) {
 	$path = realpath($moduleDir); // Pfad zum Projektordner
 	$parts = explode(DIRECTORY_SEPARATOR, $path);
 	$vendor = $parts[count($parts)-2]; // xx
@@ -55,3 +62,4 @@ foreach ($D['MODUL']['D'] as $moduleDir => $info) {
         require_once $start;
     }
 }
+*/
