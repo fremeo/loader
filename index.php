@@ -29,15 +29,21 @@ foreach (glob($base . '/system' . '/*/*', GLOB_ONLYDIR) as $moduleDir) {
 	];
 }
 
-// 2. Phase: alle init.php laden
+
+# 2.0. Lade framework als erstes
+$info_framework_Id  = 'papp/framework';
+require_once "system/{$info_framework_Id}/init.php"; #Todo: Hotfix, zum starten von framework. 
+
+// 2.1. Phase: alle init.php laden
 foreach ($D['MODUL']['D'] as $moduleDir => $info) {
-    $D['MY'] = $info;
-	
-	$init = $info['ModulDir'] . '/init.php';
-    if (is_file($init)) {
-        require_once $init;
-    }
-	
+	if($info_framework_Id != $moduleDir) {
+		$D['MY'] = $info;
+		
+		$init = $info['ModulDir'] . '/init.php';
+		if (is_file($init)) {
+			require_once $init;
+		}
+	}
 }
 
 // 3. Phase: alle start.php laden
