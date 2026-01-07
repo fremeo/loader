@@ -1,21 +1,51 @@
 <?php
 
 $D = $_REQUEST['D'] ?? null; //Data Array
-$SD = $_REQUEST['R'] ?? null; // security Data array
+$SD = $_REQUEST['S'] ?? null; // security Data array
 $D['R'] = $R = $_REQUEST['R'] ?? null; //Request Array
 $D['C'] = $C = null; //Klassen Instanz Array
 $D['SESSION'] = null; 
 
 
-$a = include('system/autoload.php');
+include('system/autoload.php');
 
-// Alle init.php Dateien in system/*/*/init.php laden
-$vendorDir = __DIR__ . '/system';
-foreach (glob($vendorDir . '/*/*/init.php') as $initFile) {
-    require_once $initFile;
+$base = __DIR__; 
+
+// 1. Module scannen und Metadaten sammeln
+foreach (glob($base . '/system' . '/*/*', GLOB_ONLYDIR) as $moduleDir) {
+	$path = realpath($moduleDir); // Pfad zum Projektordner
+	$parts = explode(DIRECTORY_SEPARATOR, $path);
+	$vendor = $parts[count($parts)-2]; // xx
+	$package = $parts[count($parts)-1]; // yy
+	$Id = "{$vendor}/{$package}";
+	
+	$D['MODUL']['D'][ $Id ] = [
+		'Id'			=> $Id,
+		'ModulDir'		=> $moduleDir,
+		'VendorName'	=> $vendor,
+		'PackageName'	=> $package,
+		'CacheDir'		=> "data_c/{$vendor}_{$package}/",
+		'DataDir'		=> "data/{$vendor}_{$package}/",
+	];
 }
 
-$vendorDir = __DIR__ . '/system';
-foreach (glob($vendorDir . '/*/*/start.php') as $initFile) {
-    require_once $initFile;
+// 2. Phase: alle init.php laden
+foreach ($D['MODUL']['D'] as $moduleDir => $info) {
+    $D['MY'] = $info;
+	
+	$init = $info['ModulDir'] . '/init.php';
+    if (is_file($init)) {
+        require_once $init;
+    }
+	
+}
+
+// 3. Phase: alle start.php laden
+foreach ($D['MODUL']['D'] as $moduleDir => $info) {
+    $D['MY'] = $info;
+	
+	$start = $info['ModulDir'] . '/start.php';
+    if (is_file($start)) {
+        require_once $start;
+    }
 }

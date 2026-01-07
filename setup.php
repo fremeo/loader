@@ -21,10 +21,10 @@ spl_autoload_register(function ($class) {
 
 
 // Constants
-define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'setup');
+define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system/papp/framework/system/core');
 define('SYSTEM_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system');
 define('COMPOSER_PHAR', SETUP_DIR . DIRECTORY_SEPARATOR . 'composer.phar');
-define('LOG_FILE', SETUP_DIR . DIRECTORY_SEPARATOR . 'log.txt');
+define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'data_c/papp_framework' . DIRECTORY_SEPARATOR . 'log.txt');
 
 // Ensure folders exist and composer.phar is present
 function ensureEnvironment(): void {
