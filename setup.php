@@ -22,6 +22,7 @@ spl_autoload_register(function ($class) {
 
 // Constants
 define('PROJECT_ROOT', __DIR__);
+define('SYSTEM_TEMP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'data_c'. DIRECTORY_SEPARATOR . 'papp_framework');
 define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system'. DIRECTORY_SEPARATOR .'papp'. DIRECTORY_SEPARATOR .'framework'. DIRECTORY_SEPARATOR .'system'. DIRECTORY_SEPARATOR .'core');
 define('SYSTEM_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system');
 define('COMPOSER_PHAR', SETUP_DIR . DIRECTORY_SEPARATOR . 'composer.phar');
@@ -34,6 +35,9 @@ function ensureEnvironment(): void {
     }
     if (!is_dir(SYSTEM_DIR)) {
         mkdir(SYSTEM_DIR, 0775, true);
+    }
+	if (!is_dir(SYSTEM_TEMP_DIR)) {
+        mkdir(SYSTEM_TEMP_DIR, 0775, true);
     }
     if (!is_file(COMPOSER_PHAR)) {
         // Download latest stable composer.phar
