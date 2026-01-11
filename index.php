@@ -7,6 +7,7 @@ $D['R'] = $R = $_REQUEST['R'] ?? null; //Request Array
 $D['C'] = $C = null; //Klassen Instanz Array
 $D['SESSION'] = null; 
 
+
 #Load framework
 require_once "system/papp/framework/init.php";
 require_once "system/papp/framework/start.php";

@@ -32,13 +32,19 @@ RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
 #FILE START ===============
 #ToDo: die RewriteCond weiche für localhost oder für Domain, funktioniert nicht!!
 #Bild aus dem Cache ausgeben
-#file/[Text_]ab12345_12x12.jpg													data_c/PLATFORM/shop/file/ab12345_12x12.jpg
-RewriteRule ^file/(.*)_(.*)_(.*)x(.*)\.(.*)$									data_c/PLATFORM/$1/file/$2_$3x$4.$5 [L] #Datei ausgabe nach der File ID 
-RewriteRule ^file/(.*)_(.*)x(.*)\.(.*)$											data_c/PLATFORM/shop/file/$1_$2x$3.$4 [L] #Datei ausgabe nach der File ID 
+# 1. Datei existiert → direkt ausliefern
+
+#file/[Text_]ab12345_12x12.jpg													data_c/papp_framework/file/ab12345_12x12.jpg
+#RewriteRule ^file/(.*)_(.*)_(.*)x(.*)\.(.*)$									data_c/papp_framework/$1/file/$2_$3x$4.$5 [L] #Datei ausgabe nach der File ID 
+#RewriteRule ^file/(.*)_(.*)x(.*)\.(.*)$											data_c/papp_framework/file/$1_$2x$3.$4 [L] #Datei ausgabe nach der File ID 
+RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|png|gif|webp|avif)$ 		data_c/papp_framework/file/$1_$2x$3.$4 [L]
+
 
 #Bild neu generieren wen es im cach nicht gefunden wurde
+# 2. Datei existiert NICHT → hole sie dynamisch
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteRule ^data_c/PLATFORM/shop/file/(.*)_(.*)x(.*)\.(.*)$					get_file.php?D[_F][FILE][W][0][ID]=$1&D[_X]=$2&D[_Y]=$3&D[_TYPE]=$4 [L] #nach File ID
+#RewriteRule ^data_c/papp_framework/file/(.*)_(.*)x(.*)\.(.*)$					system/papp/framework/system/blank__get_file.php?R[id]=$1&R[x]=$2&R[y]=$3&R[type]=$4 [L] #nach File ID
+RewriteRule ^data_c/papp_framework/file/(.*)_(.*)x(.*)\.(.*)$					index.php?D[_PAGE]=get_file&R[ModuleId]=papp/framework&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L] #nach File ID
 #FILE ENDE ================
 
 
@@ -50,9 +56,9 @@ RewriteRule ^data_c/PLATFORM/shop/file/(.*)_(.*)x(.*)\.(.*)$					get_file.php?D[
 RewriteRule ^setup\.php$ - [L]
 
 ##RewriteCond %{REQUEST_URI} !^(/file/|/data_c/) #Es soll nicht auf /file/ und /data_c/ reagieren
-RewriteCond %{REQUEST_URI} !^/file/
-RewriteCond %{REQUEST_URI} !^/data_c/
+RewriteRule ^(file/|data_c/) - [L]
 RewriteRule ^(.*)?(.*)$			index.php?D[SEO_URL]=$1&$2 [QSA,L] #[QSA]
+
 
 
 
