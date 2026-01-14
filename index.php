@@ -1,5 +1,5 @@
 <?php
-define('PROJECT_ROOT', __DIR__);
+define('PROJECT_ROOT', __DIR__.'/');
 
 $D = $_REQUEST['D'] ?? null; //Data Array
 $SD = $_REQUEST['S'] ?? null; // security Data array
