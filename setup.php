@@ -11,7 +11,7 @@ spl_autoload_register(function ($class) {
         return;
     }
 
-    $base = __DIR__ . DIRECTORY_SEPARATOR . 'system'. DIRECTORY_SEPARATOR .'papp'. DIRECTORY_SEPARATOR .'framework'. DIRECTORY_SEPARATOR .'system'. DIRECTORY_SEPARATOR .'core' . DIRECTORY_SEPARATOR;
+    $base = __DIR__ . DIRECTORY_SEPARATOR . 'system'. DIRECTORY_SEPARATOR .'papp'. DIRECTORY_SEPARATOR .'phpapp'. DIRECTORY_SEPARATOR .'system'. DIRECTORY_SEPARATOR .'core' . DIRECTORY_SEPARATOR;
     $file = $base . $class . '.php';
 
     if (is_file($file)) {
@@ -22,11 +22,11 @@ spl_autoload_register(function ($class) {
 
 // Constants
 define('PROJECT_ROOT', __DIR__);
-define('SYSTEM_TEMP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'data_c'. DIRECTORY_SEPARATOR . 'papp_framework');
-define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system'. DIRECTORY_SEPARATOR .'papp'. DIRECTORY_SEPARATOR .'framework'. DIRECTORY_SEPARATOR .'system'. DIRECTORY_SEPARATOR .'core');
+define('SYSTEM_TEMP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'data_c'. DIRECTORY_SEPARATOR . 'papp_phpapp');
+define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system'. DIRECTORY_SEPARATOR .'papp'. DIRECTORY_SEPARATOR .'phpapp'. DIRECTORY_SEPARATOR .'system'. DIRECTORY_SEPARATOR .'core');
 define('SYSTEM_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system');
 define('COMPOSER_PHAR', SETUP_DIR . DIRECTORY_SEPARATOR . 'composer.phar');
-define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'data_c'. DIRECTORY_SEPARATOR .'papp_framework' . DIRECTORY_SEPARATOR . 'log.txt');
+define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'data_c'. DIRECTORY_SEPARATOR .'papp_phpapp' . DIRECTORY_SEPARATOR . 'log.txt');
 
 // Ensure folders exist and composer.phar is present
 function ensureEnvironment(): void {

@@ -9,8 +9,8 @@ $D['SESSION'] = null;
 
 
 #Load framework
-require_once "system/papp/framework/init.php";
-require_once "system/papp/framework/start.php";
+require_once "system/papp/phpapp/init.php";
+require_once "system/papp/phpapp/start.php";
 #end
 
 /*
