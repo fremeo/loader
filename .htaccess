@@ -44,7 +44,7 @@ RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|png|gif|webp|avif)$ 	
 # 2. Datei existiert NICHT → hole sie dynamisch
 RewriteCond %{REQUEST_FILENAME} !-f
 #RewriteRule ^data_c/papp_framework/file/(.*)_(.*)x(.*)\.(.*)$					system/papp/phpapp/system/blank__get_file.php?R[id]=$1&R[x]=$2&R[y]=$3&R[type]=$4 [L] #nach File ID
-RewriteRule ^data_c/papp_phpapp/file/(.*)_(.*)x(.*)\.(.*)$					index.php?D[_PAGE]=get_file&R[ModuleId]=papp/phpapp&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L] #nach File ID
+RewriteRule ^data_c/papp_phpapp/file/(.*)_(.*)x(.*)\.(.*)$					index.php?R[Page]=get_file&R[ModuleId]=papp/phpapp&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L] #nach File ID
 #FILE ENDE ================
 
 
