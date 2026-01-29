@@ -3,8 +3,9 @@ define('PROJECT_ROOT', __DIR__.'/');
 define('SCRIPT_NAME',rtrim(dirname($_SERVER['SCRIPT_NAME']), '/').'/');
 
 
+
 $D = $_REQUEST['D'] ?? null; //Data Array
-$SD = $_REQUEST['S'] ?? null; // security Data array
+$SD = $_REQUEST['SD'] ?? null; // security Data array
 $D['R'] = $R = ($_REQUEST['R']??null); //Request Array
 $D['C'] = $C = null; //Klassen Instanz Array
 $D['SESSION'] = null; 
@@ -14,6 +15,10 @@ $D['SESSION'] = null;
 require_once "system/papp/phpapp/init.php";
 require_once "system/papp/phpapp/start.php";
 #end
+
+
+
+
 
 /*
 include('system/autoload.php');
