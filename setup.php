@@ -22,11 +22,11 @@ spl_autoload_register(function ($class) {
 
 // Constants
 define('PROJECT_ROOT', __DIR__);
-define('SYSTEM_TEMP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'data_c'. DIRECTORY_SEPARATOR . 'papp_phpapp');
-define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system'. DIRECTORY_SEPARATOR .'papp'. DIRECTORY_SEPARATOR .'phpapp'. DIRECTORY_SEPARATOR .'system'. DIRECTORY_SEPARATOR .'core');
-define('SYSTEM_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system');
+define('SYSTEM_TEMP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'data_c');
+define('SETUP_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system'. DIRECTORY_SEPARATOR .'core');
+define('SYSTEM_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'system'.DIRECTORY_SEPARATOR . 'vendor');
 define('COMPOSER_PHAR', SETUP_DIR . DIRECTORY_SEPARATOR . 'composer.phar');
-define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'data_c'. DIRECTORY_SEPARATOR .'papp_phpapp' . DIRECTORY_SEPARATOR . 'log.txt');
+define('LOG_FILE', __DIR__ . DIRECTORY_SEPARATOR . 'data_c' . DIRECTORY_SEPARATOR . 'composer_log.txt');
 
 // Ensure folders exist and composer.phar is present
 function ensureEnvironment(): void {
