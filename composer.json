@@ -6,10 +6,13 @@
     "keywords": ["phpapp"],
     "require": {
         "php": "^8.0",
-		"papp/phpapp": "^v0.0.0"
+		"papp/phpapp": "^v0.0.0",
+		"papp/shop": "^v0.0.0",
+		"papp/blog": "^v0.0.0",
+		"papp/page": "^v0.0.0"
     },
     "prefer-stable": true,
     "config": {
-        "vendor-dir": "system"
+        "vendor-dir": "system/vendor"
     }
 }

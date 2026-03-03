@@ -37,7 +37,7 @@ RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
 #file/[Text_]ab12345_12x12.jpg													data_c/papp_framework/file/ab12345_12x12.jpg
 #RewriteRule ^file/(.*)_(.*)_(.*)x(.*)\.(.*)$									data_c/papp_framework/$1/file/$2_$3x$4.$5 [L] #Datei ausgabe nach der File ID 
 #RewriteRule ^file/(.*)_(.*)x(.*)\.(.*)$											data_c/papp_phpapp/file/$1_$2x$3.$4 [L] #Datei ausgabe nach der File ID 
-RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|png|gif|webp|avif)$ 		data_c/papp_phpapp/file/$1_$2x$3.$4 [L]
+RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$ 		data_c/papp_phpapp/file/$1_$2x$3.$4 [L]
 
 
 #Bild neu generieren wen es im cach nicht gefunden wurde
