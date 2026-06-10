@@ -1,15 +1,15 @@
 {
-    "name": "papp/loader",
+    "name": "fremeo/loader",
     "description": "A phpApp loader for PHP projects: installation, package management, and configuration all in one.",
     "license": "proprietary",
     "type": "project",
     "keywords": ["phpapp"],
     "require": {
         "php": "^8.0",
-		"papp/phpapp": "^v0.0.0",
-		"papp/shop": "^v0.0.0",
-		"papp/blog": "^v0.0.0",
-		"papp/page": "^v0.0.0"
+		"fremeo/phpapp": "^v0.0.0",
+		"fremeo/shop": "^v0.0.0",
+		"fremeo/blog": "^v0.0.0",
+		"fremeo/page": "^v0.0.0"
     },
     "prefer-stable": true,
     "config": {
