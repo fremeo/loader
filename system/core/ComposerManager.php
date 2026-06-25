@@ -181,8 +181,8 @@ private function detectPhpBinary(): string
 		$installResult = $this->runComposer(['install']);
 */
 		// 5. Autoloader optimiert neu erzeugen
-        $autoloadResult = $this->runComposer(['composer', 'install']);
-		#$autoloadResult = $this->runComposer(['dump-autoload', '-o']);
+       
+		$autoloadResult = $this->runComposer(['dump-autoload', '-o']);
 
 		return [
 			'install' => $installResult,

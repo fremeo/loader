@@ -6,13 +6,19 @@
     "keywords": ["phpapp"],
     "require": {
         "php": "^8.0",
-		"fremeo/phpapp": "^v0.0.0",
+		"fremeo/core": "^v0.0.0",
 		"fremeo/shop": "^v0.0.0",
 		"fremeo/blog": "^v0.0.0",
 		"fremeo/page": "^v0.0.0"
     },
-    "prefer-stable": true,
     "config": {
         "vendor-dir": "system/vendor"
-    }
+    },
+	"require-dev": {
+		"fremeo/core": "dev-main",
+		"fremeo/shop": "dev-main",
+		"fremeo/blog": "dev-main",
+		"fremeo/page": "dev-main"
+	},
+	"prefer-stable": true
 }
