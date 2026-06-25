@@ -6,7 +6,7 @@
     "keywords": ["phpapp"],
     "require": {
         "php": "^8.0",
-		"fremeo/phpapp": "^v0.0.0",
+		"fremeo/core": "^v0.0.0",
 		"fremeo/shop": "^v0.0.0",
 		"fremeo/blog": "^v0.0.0",
 		"fremeo/page": "^v0.0.0"
