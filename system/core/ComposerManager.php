@@ -159,7 +159,7 @@ private function detectPhpBinary(): string
 	{
 		$vendorDir = $this->getVendorDir();
 		$composerDir = $vendorDir . '/composer';
-
+/*
 		// 1. composer/ Ordner löschen
 		if (is_dir($composerDir)) {
 			$this->deleteDirectory($composerDir);
@@ -179,9 +179,10 @@ private function detectPhpBinary(): string
 
 		// 4. Pakete neu installieren (erzeugt installed.php)
 		$installResult = $this->runComposer(['install']);
-
+*/
 		// 5. Autoloader optimiert neu erzeugen
-		$autoloadResult = $this->runComposer(['dump-autoload', '-o']);
+        $autoloadResult = $this->runComposer(['composer', 'install']);
+		#$autoloadResult = $this->runComposer(['dump-autoload', '-o']);
 
 		return [
 			'install' => $installResult,

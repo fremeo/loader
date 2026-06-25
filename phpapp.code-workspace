@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "system/vendor/fremeo/core"
+		},
+		{
+			"path": "system/vendor/fremeo/blog"
+		},
+		{
+			"path": "system/vendor/fremeo/page"
+		},
+		{
+			"path": "system/vendor/fremeo/shop"
+		},
+		{
+			"path": "system/vendor/phploader/smartylite"
+		},
+		{
+			"path": "system/vendor/phploader/cdata"
+		}
+	],
+	"settings": {}
+}

@@ -18,6 +18,6 @@ $C['ComposerManager'] = new ComposerManager(__DIR__.'/system/core/composer.phar'
 
 include('system/vendor/autoload.php');
 #Load framework
-require_once "system/vendor/papp/phpapp/init.php";
-require_once "system/vendor/papp/phpapp/start.php";
+require_once "system/vendor/fremeo/core/init.php";
+require_once "system/vendor/fremeo/core/start.php";
 #end
