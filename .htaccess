@@ -34,17 +34,17 @@ RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
 #Bild aus dem Cache ausgeben
 # 1. Datei existiert → direkt ausliefern
 
-#file/[Text_]ab12345_12x12.jpg													data_c/papp~phpapp/file/ab12345_12x12.jpg
-#RewriteRule ^file/(.*)_(.*)_(.*)x(.*)\.(.*)$									data_c/papp~phpapp/$1/file/$2_$3x$4.$5 [L] #Datei ausgabe nach der File ID 
-#RewriteRule ^file/(.*)_(.*)x(.*)\.(.*)$											data_c/papp~phpapp/file/$1_$2x$3.$4 [L] #Datei ausgabe nach der File ID 
-RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$ 		data_c/papp~phpapp/file/$1_$2x$3.$4 [L]
+#file/[Text_]ab12345_12x12.jpg													data_c/fremeo~core/file/ab12345_12x12.jpg
+#RewriteRule ^file/(.*)_(.*)_(.*)x(.*)\.(.*)$									data_c/fremeo~core/$1/file/$2_$3x$4.$5 [L] #Datei ausgabe nach der File ID 
+#RewriteRule ^file/(.*)_(.*)x(.*)\.(.*)$											data_c/fremeo~core/file/$1_$2x$3.$4 [L] #Datei ausgabe nach der File ID 
+RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$ 		data_c/fremeo~core/file/$1_$2x$3.$4 [L]
 
 
 #Bild neu generieren wen es im cach nicht gefunden wurde
 # 2. Datei existiert NICHT → hole sie dynamisch
 RewriteCond %{REQUEST_FILENAME} !-f
-#RewriteRule ^data_c/papp~phpapp/file/(.*)_(.*)x(.*)\.(.*)$					system/papp/phpapp/system/blank__get_file.php?R[id]=$1&R[x]=$2&R[y]=$3&R[type]=$4 [L] #nach File ID
-RewriteRule ^data_c/papp~phpapp/file/(.*)_(.*)x(.*)\.(.*)$					index.php?R[Page]=get_file&R[ModuleId]=papp/phpapp&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L] #nach File ID
+#RewriteRule ^data_c/fremeo~core/file/(.*)_(.*)x(.*)\.(.*)$					system/fremeo/core/system/blank__get_file.php?R[id]=$1&R[x]=$2&R[y]=$3&R[type]=$4 [L] #nach File ID
+RewriteRule ^data_c/fremeo~core/file/(.*)_(.*)x(.*)\.(.*)$					index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L] #nach File ID
 #FILE ENDE ================
 
 
