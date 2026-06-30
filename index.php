@@ -17,7 +17,7 @@ $C['Packagist'] = new Packagist();
 $C['ComposerManager'] = new ComposerManager(__DIR__.'/system/core/composer.phar', 'data_c/composer_log.txt');
 
 include('system/vendor/autoload.php');
-#Load framework
+#Load Core
 require_once "system/vendor/fremeo/core/init.php";
-require_once "system/vendor/fremeo/core/start.php";
+#require_once "system/vendor/fremeo/core/start.php";
 #end
