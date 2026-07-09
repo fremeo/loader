@@ -3,7 +3,7 @@
     "description": "A phpApp loader for PHP projects: installation, package management, and configuration all in one.",
     "license": "proprietary",
     "type": "project",
-    "keywords": ["phpapp"],
+    "keywords": ["fremeo"],
     "require": {
         "php": "^8.0",
 		"fremeo/core": "~v0",

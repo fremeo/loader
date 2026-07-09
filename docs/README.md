@@ -2,7 +2,7 @@
 
 ## Überblick
 
-Dieses Hauptprojekt ist ein modularer Composer-Loader und bezeichnet sich selbst als `papp/loader`.
+Dieses Hauptprojekt ist ein modularer Composer-Loader und bezeichnet sich selbst als `fremeo/loader`.
 Es lädt die eigentliche Anwendung über Composer-Pakete, die in `system/vendor` abgelegt sind.
 
 ## Hauptfunktionalität
@@ -17,16 +17,16 @@ Es lädt die eigentliche Anwendung über Composer-Pakete, die in `system/vendor`
 Das Projekt ist so aufgebaut, dass zusätzliche Funktionen nicht direkt im Kern liegen, sondern als Composer-Pakete geladen werden.
 Diese Pakete sind:
 
-- `papp/phpapp` – das Framework selbst
-- `papp/shop` – Shop-Funktionalität
-- `papp/blog` – Blog-Funktionalität
-- `papp/page` – Seiten-/Content-Funktionalität
+- `fremeo/core` – das Framework selbst
+- `fremeo/shop` – Shop-Funktionalität
+- `fremeo/blog` – Blog-Funktionalität
+- `fremeo/page` – Seiten-/Content-Funktionalität
 
 ## Boot-Prozess
 
 1. `index.php` lädt die Composer-Kernklassen.
 2. `system/vendor/autoload.php` wird eingebunden.
-3. `system/vendor/papp/phpapp/init.php` und `system/vendor/papp/phpapp/start.php` werden ausgeführt.
+3. `system/vendor/fremeo/core/init.php` und `system/vendor/fremeo/core/start.php` werden ausgeführt.
 
 Das heißt: Der Hauptprojekt-Code initialisiert die Umgebung, und das Laden der eigentlichen Anwendungslogik erfolgt über die installierten Module.
 
@@ -43,7 +43,7 @@ Das erlaubt:
 
 ## Hinweise für die Arbeit am Projekt
 
-- Das Hauptprojekt ist `papp/loader`.
+- Das Hauptprojekt ist `fremeo/loader`.
 - `system/vendor` enthält die installierten Pakete, die während der Laufzeit genutzt werden.
 - Änderungen an der Paketkonfiguration und am Loader-Code erfolgen im Hauptprojekt.
 - Wenn du nur an den installierten Projektteilen arbeiten willst, sind das die jeweiligen Paketordner unter `system/vendor`.

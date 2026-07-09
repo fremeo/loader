@@ -1,12 +1,12 @@
-# Hauptprojekt: papp/loader
+# Hauptprojekt: fremeo/loader
 
-Dieses Projekt ist das zentrale Hauptprojekt und dient als modularer Loader/Installer für zusätzliche phpApp-Projekte.
+Dieses Projekt ist das zentrale Hauptprojekt und dient als modularer Loader/Installer für zusätzliche core-Projekte.
 
 ## Architektur
 
 - Das Hauptprojekt ist als Composer-Projekt (`composer.json`) angelegt.
 - Die Composer-Abhängigkeiten werden in `system/vendor` installiert.
-- Dort liegen auch die geladenen Module/Pakete wie `papp/phpapp`, `papp/shop`, `papp/blog` und `papp/page`.
+- Dort liegen auch die geladenen Module/Pakete wie `fremeo/core`, `fremeo/shop`, `fremeo/blog` und `fremeo/page`.
 - `system/vendor` kann neben PHP-Code auch Dokumentation oder weitere Dateien der installierten Pakete enthalten.
 
 ## Start und Boot
@@ -15,25 +15,23 @@ Die Datei `index.php` ist der Einstiegspunkt:
 
 - `system/core/Packagist.php` und `system/core/ComposerManager.php` werden geladen.
 - Eine Composer-Autoload-Datei aus `system/vendor/autoload.php` wird eingebunden.
-- Das Framework `papp/phpapp` wird über:
-  - `system/vendor/papp/phpapp/init.php`
-  - `system/vendor/papp/phpapp/start.php`
+- Das Framework `fremeo/core` wird über:
+  - `system/vendor/fremeo/core/init.php`
+  - `system/vendor/fremeo/core/start.php`
   geladen.
 
 Damit ist klar: Das Hauptprojekt orchestriert die Installation und den Start, während die eigentliche Funktionalität modular über die Pakete aus `system/vendor` bereitgestellt wird.
 
 ## Composer-Konfiguration
 
-Die `composer.json` definiert das Projekt `papp/loader` und setzt:
+Die `composer.json` definiert das Projekt `fremeo/loader` und setzt:
 
 - `type: project`
 - `config.vendor-dir: system/vendor`
 - `require`:
   - `php: ^8.0`
-  - `papp/phpapp`
-  - `papp/shop`
-  - `papp/blog`
-  - `papp/page`
+  - `fremeo/core`
+  
 
 Das bedeutet: Alle Pakete werden in den Ordner `system/vendor` installiert und sind Teil der Laufzeitumgebung.
 
