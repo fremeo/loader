@@ -6,7 +6,11 @@
     "keywords": ["fremeo"],
     "require": {
         "php": "^8.0",
+<<<<<<< HEAD
 		"fremeo/core": "~v0"
+=======
+		"fremeo/core": "^v0.0.0"
+>>>>>>> 9b55c69877dcffc0a00cf09b8399d39008ed6651
     },
     "config": {
         "vendor-dir": "system/vendor"
