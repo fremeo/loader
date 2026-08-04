@@ -8,6 +8,14 @@
         "php": "^8.0",
 		"fremeo/core": "~v0"
     },
+    "scripts": {
+        "post-install-cmd": [
+            "@php index.php migration"
+        ],
+        "post-update-cmd": [
+            "@php index.php migration"
+        ]
+    },
     "config": {
         "vendor-dir": "system/vendor"
     },
