@@ -58,8 +58,12 @@ Die Datei `setup.php` sorgt dafür, dass die Umgebung existiert und Composer zur
 - Beim Arbeiten am Hauptprojekt berücksichtige ich auch Dateien und Strukturen in `system/vendor`, weil sie Teil der installierten Module sind.
 - Wenn du hingegen nur den Kern des Hauptprojekts ändern willst, dann konzentrieren wir uns auf die Dateien im Projektstamm statt auf die installierten Paketdaten.
 
-## Empfehlung
-
-- Bearbeite die Hauptlogik im Projektstamm (`index.php`, `setup.php`, `composer.json`, `system/core`).
-- Nutze `system/vendor` als installierte Laufzeitumgebung für die geladenen Module.
-- Wenn Pakete verändert werden sollen, ist es besser, die jeweiligen Paketquellen außerhalb des installierten `system/vendor` zu pflegen und dort neu zu installieren.
+## Installation
+# 1. Lade das Hauptprojekt herunter und entpacke es in einen Webserver-Ordner.
+# 2. Rufe `/setup/` im Browser auf, um die Installation zu starten.
+# 3. Als erstes wird ein Verzeichnisschutz für setup/ eingerichtet, um unbefugten Zugriff zu verhindern. Zugangsdaten werden im Browser einmal angezeigt und sollten notiert werden.
+# 4. Danach wird console.php aufgerufen.
+# 5. gib install ein, um die Installation zu starten. Composer wird automatisch heruntergeladen und die Abhängigkeiten installiert.
+# 6. nach erfoglreichen installtion wird Admin Zugang angezeigt. Benutzer und Passwort dies notieren, da es nur einmal angezeigt wird.
+# 7. durch den Aufruf "/admin/" im Browser kann man sich mit den Zugangsdaten anmelden und die Admin-Oberfläche nutzen.
+# 8. Änderen Sie das Passwort nach der ersten Anmeldung, um die Sicherheit zu gewährleisten.
