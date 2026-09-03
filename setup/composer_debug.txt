@@ -1,0 +1,19 @@
+=== START 2026-09-03T16:12:06+02:00 ===
+CMD: "C:\xampp\php\php.exe" "C:\xampp\htdocs\test3\composer_test\setup/composer.phar" --working-dir="C:/xampp/htdocs/test3/composer_test/setup" -vv update
+PWD: C:\xampp\htdocs\test3\composer_test\setup
+EXIT: 1
+DURATION: 0.3471531867981s
+=== START 2026-09-03T16:12:13+02:00 ===
+CMD: "C:\xampp\php\php.exe" "C:\xampp\htdocs\test3\composer_test\setup/composer.phar" --working-dir="C:/xampp/htdocs/test3/composer_test/setup" -vv .. update
+PWD: C:\xampp\htdocs\test3\composer_test\setup
+EXIT: 1
+DURATION: 0.30212903022766s
+=== START 2026-09-03T16:15:02+02:00 ===
+CMD: "C:\xampp\php\php.exe" "C:\xampp\htdocs\test3\composer_test\setup/composer.phar" --working-dir="C:/xampp/htdocs/test3/composer_test/setup" -vv update
+PWD: C:\xampp\htdocs\test3\composer_test\setup
+EXIT: 1
+DURATION: 0.3320779800415s
+=== START 2026-09-03T16:16:11+02:00 ===
+CMD: "C:\xampp\php\php.exe" "C:\xampp\htdocs\test3\composer_test\setup/composer.phar" --working-dir="C:/xampp/htdocs/test3/composer_test/setup../" -vv update
+PWD: C:\xampp\htdocs\test3\composer_test\setup
+ERROR: proc_open failed

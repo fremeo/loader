@@ -52,6 +52,9 @@ RewriteRule ^data_c/fremeo~core/file/(.*)_(.*)x(.*)\.(.*)$					index.php?R[Page]
 #Führt die RewriteRule nur dann aus, wenn keine Dateiendung übergeben wurde. Gilt für SEO-URLs oder nur für Parameter an Index
 ###RewriteCond %{REQUEST_URI} !\.[a-zA-Z0-9]+$	 #Mus geprüft werden, welche Ordner zugelasen sind für den Zugriff, ggf. nur data_c, wie es mit Template datein css, jpg, aussieht?
 
+# setup-Ordner direkt ausliefern und PHP-Ausführung erlauben
+RewriteRule ^setup/ - [L]
+
 # setup.php direkt ausliefern (nicht umschreiben)
 RewriteRule ^setup\.php$ - [L]
 
