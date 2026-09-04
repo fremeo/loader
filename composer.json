@@ -16,7 +16,8 @@
             "@php index.php migration"
         ],
         "post-package-uninstall": [
-            "@php -r 'passthru(\'php index.php uninstall \' . escapeshellarg(\$event->getOperation()->getPackage()->getName()));'""@php index.php uninstall"
+			"@php -r \"passthru('php index.php uninstall ' . escapeshellarg(\\$event->getOperation()->getPackage()->getName()));\""
+        ]
     },
     "config": {
         "vendor-dir": "system/vendor"

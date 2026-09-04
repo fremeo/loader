@@ -5,6 +5,7 @@ system/vendor*
 setup/.htaccess
 setup/.htpasswd
 setup/composer_debug.txt
+composer_debug.txt
 composer.lock
 composer.json
 composer.lock*
