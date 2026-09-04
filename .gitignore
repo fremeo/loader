@@ -1,0 +1,11 @@
+.git
+data/*
+data_c/*
+system/vendor*
+setup/.htaccess
+setup/.htpasswd
+setup/composer_debug.txt
+composer.lock
+composer.json
+composer.lock*
+phpapp.code-workspace
