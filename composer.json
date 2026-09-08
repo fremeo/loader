@@ -1,7 +1,7 @@
 {
     "name": "fremeo/loader",
     "description": "A phpApp loader for PHP projects: installation, package management, and configuration all in one.",
-    "license": "proprietary",
+    "license": "MIT",
     "type": "project",
     "keywords": ["fremeo"],
     "require": {
