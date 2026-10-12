@@ -1,26 +1,26 @@
-php_value memory_limit 5000M
-php_flag magic_quotes_gpc off
-php_value max_input_vars 1000000
-php_value max_execution_time 60
-php_value post_max_size 400M
+# PHP Einstellungen. Nur mit mod_php moeglich, bei PHP-FPM/CGI wuerde php_value einen 500-Fehler ausloesen.
+# Dort stattdessen .user.ini oder php.ini verwenden.
+<IfModule mod_php.c>
+	php_value memory_limit 5000M
+	php_value max_input_vars 1000000
+	php_value max_execution_time 60
+	php_value post_max_size 400M
+	php_value upload_max_filesize 400M
+</IfModule>
 
 Options +FollowSymLinks -Indexes
-#Options +SymLinksIfOwnerMatch
 
 RewriteEngine on
-#RewriteBase /
 
 
 #von www zur nicht www umleiten.
 RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
 RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
 
-#SSL ON!
-RewriteCond %{REMOTE_ADDR} !=127.0.0.1 
-RewriteCond %{REMOTE_ADDR} !=::1
-RewriteCond %{HTTP_HOST} !^127\.0\.0\.1(?::\d+)?$
+#SSL ON! (nicht fuer localhost)
 RewriteCond %{HTTPS} !=on
-RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 
 #START Zugriff auf Public Dateien ====================
@@ -30,64 +30,34 @@ RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
 #END Zugriff auf Public Dateien ======================
 
 #FILE START ===============
-#ToDo: die RewriteCond weiche für localhost oder für Domain, funktioniert nicht!!
-#Bild aus dem Cache ausgeben
-# 1. Datei existiert → direkt ausliefern
+# 1. file/ab12345_12x12.jpg  =>  data_c/fremeo~core/file/ab12345_12x12.jpg
+#    Existiert die Datei, wird sie von Apache direkt ausgeliefert (siehe Regel "data_c/" weiter unten).
+RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	data_c/fremeo~core/file/$1_$2x$3.$4 [L]
 
-#file/[Text_]ab12345_12x12.jpg													data_c/fremeo~core/file/ab12345_12x12.jpg
-#RewriteRule ^file/(.*)_(.*)_(.*)x(.*)\.(.*)$									data_c/fremeo~core/$1/file/$2_$3x$4.$5 [L] #Datei ausgabe nach der File ID 
-#RewriteRule ^file/(.*)_(.*)x(.*)\.(.*)$											data_c/fremeo~core/file/$1_$2x$3.$4 [L] #Datei ausgabe nach der File ID 
-RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$ 		data_c/fremeo~core/file/$1_$2x$3.$4 [L]
-
-
-#Bild neu generieren wen es im cach nicht gefunden wurde
-# 2. Datei existiert NICHT → hole sie dynamisch
+# 2. Existiert die Datei NICHT, wird sie dynamisch erzeugt
 RewriteCond %{REQUEST_FILENAME} !-f
-#RewriteRule ^data_c/fremeo~core/file/(.*)_(.*)x(.*)\.(.*)$					system/fremeo/core/system/blank__get_file.php?R[id]=$1&R[x]=$2&R[y]=$3&R[type]=$4 [L] #nach File ID
-RewriteRule ^data_c/fremeo~core/file/(.*)_(.*)x(.*)\.(.*)$					index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L] #nach File ID
+RewriteRule ^data_c/fremeo~core/file/([A-Za-z0-9-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L]
 #FILE ENDE ================
 
 
 #Seo URL
-#Führt die RewriteRule nur dann aus, wenn keine Dateiendung übergeben wurde. Gilt für SEO-URLs oder nur für Parameter an Index
-###RewriteCond %{REQUEST_URI} !\.[a-zA-Z0-9]+$	 #Mus geprüft werden, welche Ordner zugelasen sind für den Zugriff, ggf. nur data_c, wie es mit Template datein css, jpg, aussieht?
-
-# setup-Ordner direkt ausliefern und PHP-Ausführung erlauben
+# setup-Ordner direkt ausliefern und PHP-Ausfuehrung erlauben
 RewriteRule ^setup/ - [L]
 
-# setup.php direkt ausliefern (nicht umschreiben)
-RewriteRule ^setup\.php$ - [L]
-
-##RewriteCond %{REQUEST_URI} !^(/file/|/data_c/) #Es soll nicht auf /file/ und /data_c/ reagieren
+# file/ und data_c/ nicht als SEO-URL behandeln
 RewriteRule ^(file/|data_c/) - [L]
-RewriteRule ^(.*)?(.*)$			index.php?D[SEO_URL]=$1&$2 [QSA,L] #[QSA]
+
+# Alles andere geht an index.php. Bewusst ohne !-f, damit keine Ordner (system/, data/) direkt erreichbar sind.
+RewriteRule ^(.*)$			index.php?D[SEO_URL]=$1 [QSA,L]
 
 
-
-
-#FILE Icon Start================
-RewriteRule ^favicon.ico$									view/account/template/core/favicon/favicon.ico [L,QSA]
-RewriteRule ^apple-touch-icon.png$							view/account/template/core/favicon/apple-touch-icon.png [L,QSA]
-#FILE Icon Ende ================
-
-
-
-#Performance Optimierung Start ==============
-# Komprimieren der Inhalte mit Deflate nach Dateiendungen. 1. und 2. zusammen
+#Performance Optimierung ==============
 <IfModule mod_deflate.c>
-	<FilesMatch "\.(js|jpg|jpeg|gif|png|css)$">
-		ExpiresActive on
-		ExpiresDefault "access plus 1 month"
-		SetOutputFilter DEFLATE
-	</FilesMatch>
+	AddOutputFilterByType DEFLATE text/css application/javascript image/svg+xml
 </IfModule>
 
 <IfModule mod_headers.c>
-	<FilesMatch "\.(js|css)$">
-		Header set Cache-Control "max-age=604800, public"
-	</FilesMatch>
-
-	<FilesMatch "\.(gif|png|jpg|jpeg|pdf|ico)$">
+	<FilesMatch "\.(js|css|gif|png|jpe?g|webp|avif|pdf|ico)$">
 		Header set Cache-Control "max-age=604800, public"
 	</FilesMatch>
 </IfModule>
