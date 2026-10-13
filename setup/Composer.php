@@ -47,7 +47,7 @@ class Composer
     foreach ($candidates as $path) {
         if (@is_file($path) && @is_executable($path)) {
             // Führt einen kurzen Testbefehl mit der gefundenen Binary aus
-            $sapi = @shell_exec(escapeshellarg($path) . ' -r "echo PHP_SAPI;" 2>&1');
+            $sapi = (string)$this->shell(escapeshellarg($path) . ' -r "echo PHP_SAPI;"');
             
             // Wenn die Rückgabe exakt 'cli' lautet, haben wir den perfekten Pfad
             if (trim($sapi) === 'cli') {
@@ -59,11 +59,11 @@ class Composer
 	// 2.5. Linux Systembefehle nutzen, um nach 'php-cli' und 'php' zu suchen
     // 'which' sucht im gesamten System-PATH nach der ausführbaren Datei
     foreach (['php-cli', 'php'] as $cmd) {
-        $path = @shell_exec("which $cmd 2>&1");
+        $path = (string)$this->shell("which $cmd");
         if ($path) {
             $path = trim($path);
             // Validierung: Ist der gefundene System-Pfad wirklich eine CLI-SAPI?
-            $sapi = @shell_exec(escapeshellarg($path) . ' -r "echo PHP_SAPI;" 2>&1');
+            $sapi = (string)$this->shell(escapeshellarg($path) . ' -r "echo PHP_SAPI;"');
             if (trim($sapi) === 'cli') {
                 return $path;
             }
@@ -71,14 +71,14 @@ class Composer
     }
 
     // 3. Fallback 1: Versuche 'php-cli' direkt über das System aufzurufen
-    $systemCliTest = @shell_exec('php-cli -r "echo PHP_SAPI;" 2>&1');
+    $systemCliTest = (string)$this->shell('php-cli -r "echo PHP_SAPI;"');
     if (trim($systemCliTest) === 'cli') {
         return 'php-cli';
     }
 
     // 4. Fallback 2: Falls PHP_BINARY (die aktuelle Web-SAPI) wider Erwarten doch CLI ist
     if (defined('PHP_BINARY') && is_executable(PHP_BINARY)) {
-        $webSapiTest = @shell_exec(escapeshellarg(PHP_BINARY) . ' -r "echo PHP_SAPI;" 2>&1');
+        $webSapiTest = (string)$this->shell(escapeshellarg(PHP_BINARY) . ' -r "echo PHP_SAPI;"');
         if (trim($webSapiTest) === 'cli') {
             return PHP_BINARY;
         }
@@ -89,6 +89,183 @@ class Composer
 }
 
 
+    /**
+     * Führt einen Shell-Befehl aus und gibt die Ausgabe zurück. Auf vielen Servern ist proc_open gesperrt, deshalb der Reihe nach
+     * proc_open, popen, shell_exec und exec. Null = keine dieser Funktionen ist verfügbar (alle über disable_functions gesperrt).
+     */
+    protected function shell(string $command): ?string
+    {
+        $command .= ' 2>&1';
+
+        if (function_exists('proc_open')) {
+            $process = @proc_open($command, [1 => ['pipe', 'w']], $pipes);
+            if (is_resource($process)) {
+                $out = stream_get_contents($pipes[1]);
+                fclose($pipes[1]);
+                proc_close($process);
+                return (string)$out;
+            }
+        }
+        if (function_exists('popen')) {
+            $handle = @popen($command, 'r');
+            if (is_resource($handle)) {
+                $out = stream_get_contents($handle);
+                pclose($handle);
+                return (string)$out;
+            }
+        }
+        if (function_exists('shell_exec')) {
+            return (string)@shell_exec($command);
+        }
+        if (function_exists('exec')) {
+            @exec($command, $lines);
+            return implode(PHP_EOL, $lines);
+        }
+
+        return null;
+    }
+
+    /**
+     * Führt die Composer-Skripte eines Events (z.B. post-install-cmd) aus der composer.json aus.
+     * Ohne proc_open kann Composer selbst keine Skripte starten, deshalb führt das Setup sie anhand der composer.json aus.
+     * "@php ..." läuft mit der gefundenen PHP-CLI, andere "@..."-Verweise werden übersprungen.
+     */
+    protected function runScripts(string $event): void
+    {
+        $json = json_decode((string)@file_get_contents($this->projectRoot . '/composer.json'), true);
+        $commands = (array)($json['scripts'][$event] ?? []);
+        if (!$commands) {
+            return;
+        }
+
+        $this->emit(PHP_EOL . "> Composer-Skript {$event}" . PHP_EOL);
+        chdir($this->projectRoot);
+
+        foreach ($commands as $original) {
+            $this->emit("> {$original}" . PHP_EOL);
+            $command = $original;
+
+            if (str_starts_with($command, '@php ')) {
+                if ($this->phpBinary === '') {
+                    $this->emit('Fehler: Es wurde keine PHP-CLI gefunden, das Skript kann nicht ausgeführt werden.' . PHP_EOL);
+                    return;
+                }
+                $command = escapeshellarg($this->phpBinary) . ' ' . substr($command, 5);
+            } elseif (str_starts_with($command, '@')) {
+                $this->emit('Übersprungen (vom Setup nicht unterstützt).' . PHP_EOL);
+                continue;
+            }
+
+            $output = $this->shell($command);
+            if ($output === null) {
+                $this->emit('Fehler: Auf diesem Server kann kein Prozess gestartet werden (proc_open, popen, shell_exec und exec sind gesperrt).' . PHP_EOL
+                    . 'Führe das Skript per SSH oder als Cron-Job im Projektordner aus:' . PHP_EOL . "  {$original}" . PHP_EOL);
+                return;
+            }
+            $this->emit($output . PHP_EOL);
+        }
+    }
+
+    /** Composer-Events, die zu einem Befehl gehören (so wie Composer sie selbst auslösen würde). */
+    protected function eventsFor(string $command): array
+    {
+        return match (true) {
+            (bool)preg_match('/\binstall\b/', $command)           => ['post-install-cmd'],
+            (bool)preg_match('/\b(update|require)\b/', $command)  => ['post-update-cmd'],
+            (bool)preg_match('/\bremove\b/', $command)            => ['post-package-uninstall', 'post-update-cmd'],
+            default                                               => [],
+        };
+    }
+
+    /**
+     * Kann ein eigener Prozess gestartet werden? Auf vielen Servern ist proc_open über disable_functions gesperrt,
+     * oder es gibt keine nutzbare PHP-CLI-Binary. Dann läuft Composer im selben PHP-Prozess (siehe streamInProcess).
+     */
+    protected function canSpawnProcess(): bool
+    {
+        return function_exists('proc_open') && $this->phpBinary !== '';
+    }
+
+    /** Ausgabe an den Browser bzw. die Konsole (in Tests überschreibbar). */
+    protected function emit(string $text): void
+    {
+        echo $text;
+        if (function_exists('flush')) { @ob_flush(); @flush(); }
+    }
+
+    /**
+     * Führt composer.phar ohne neuen Prozess aus: die Phar wird eingebunden und die Composer-Anwendung direkt gestartet.
+     * Voraussetzungen: PHP-Erweiterung phar, allow_url_fopen oder curl, für Pakete zip (ZipArchive); genug Speicher und Laufzeit.
+     */
+    protected function streamInProcess(string $command): Generator
+    {
+        $debugFile = $this->projectRoot . '/composer_debug.txt';
+        file_put_contents($debugFile, "MODE: im selben Prozess (proc_open nicht verfügbar oder keine PHP-CLI gefunden)\n", FILE_APPEND);
+
+        // "run-script <event>": Composer kann ohne proc_open keine Skripte starten, das Setup führt sie aus der composer.json aus
+        if (preg_match('/\brun-script\s+(\S+)/', $command, $m)) {
+            $this->runScripts($m[1]);
+            return;
+        }
+
+        $phar = realpath($this->composerPath);
+        if ($phar === false) {
+            yield "Fehler: composer.phar nicht gefunden: {$this->composerPath}";
+            return;
+        }
+        if (!in_array('phar', stream_get_wrappers(), true)) {
+            yield "Fehler: Für Composer ohne Prozessstart wird die PHP-Erweiterung 'phar' benötigt.";
+            return;
+        }
+
+        @set_time_limit(0);
+        @ini_set('memory_limit', '2G');
+
+        // Composer-Skripte wie "@php index.php migration" brauchen einen Prozess und laufen hier nicht: weglassen,
+        // die Migration wird danach in der Konsole mit dem Befehl "migration" ausgeführt.
+        $skipScripts = preg_match('/\b(install|update|require|remove)\b/', $command) === 1 && !str_contains($command, '--no-scripts');
+        if ($skipScripts) {
+            $command .= ' --no-scripts';
+        }
+        foreach (['COMPOSER_NO_INTERACTION' => '1', 'COMPOSER_HOME' => sys_get_temp_dir(), 'COMPOSER_CAFILE' => '', 'SSL_CERT_FILE' => '', 'CURL_CA_BUNDLE' => ''] as $k => $v) {
+            putenv("$k=$v");
+        }
+        chdir($this->projectRoot);
+
+        try {
+            require_once 'phar://' . $phar . '/vendor/autoload.php';
+
+            $emit = fn(string $text) => $this->emit($text);
+            $output = new class($emit) extends \Symfony\Component\Console\Output\Output {
+                public function __construct(private \Closure $emit)
+                {
+                    parent::__construct();
+                }
+
+                protected function doWrite(string $message, bool $newline): void
+                {
+                    ($this->emit)($message . ($newline ? PHP_EOL : ''));
+                }
+            };
+
+            $workingDir = str_replace('\\', '/', realpath($this->projectRoot));
+            $application = new \Composer\Console\Application();
+            $application->setAutoExit(false);
+            $exit = $application->run(new \Symfony\Component\Console\Input\StringInput($command . ' --no-interaction --no-ansi --working-dir="' . $workingDir . '"'), $output);
+
+            file_put_contents($debugFile, "EXIT: $exit\n", FILE_APPEND);
+
+            if ($skipScripts && $exit === 0) {
+                foreach ($this->eventsFor($command) as $event) {
+                    $this->runScripts($event);
+                }
+            }
+        } catch (\Throwable $e) {
+            file_put_contents($debugFile, 'ERROR: ' . $e->getMessage() . "\n", FILE_APPEND);
+            yield 'Fehler: ' . $e->getMessage();
+        }
+    }
+
     public function stream(string $command): Generator
     {
         // Arbeitsverzeichnis setzen
@@ -96,6 +273,12 @@ class Composer
 
         // Verbose
         $command = '-vv ' . $command;
+
+        // Ohne proc_open (oder ohne PHP-CLI) läuft Composer im selben Prozess
+        if (!$this->canSpawnProcess()) {
+            yield from $this->streamInProcess($command);
+            return;
+        }
 
         // Prüfen, ob php binary und composer.phar existieren
         $debugFile = $this->projectRoot . '/composer_debug.txt';
