@@ -6,17 +6,7 @@
     "keywords": ["fremeo"],
     "require": {
         "php": "^8.0",
-		"fremeo/core": "~v0",
-        "fremeo/gallery": "*",
-        "fremeo/blog": "*",
-        "fremeo/frontend": "*",
-        "fremeo/page": "*",
-        "fremeo/shop": "*",
-        "phploader/cdata": "*",
-        "phploader/smarty4life": "*",
-        "symfony/filesystem": "^8.1",
-        "symfony/finder": "*",
-        "intervention/image": "*"
+		"fremeo/core": "~v0"
         
     },
     "scripts": {
