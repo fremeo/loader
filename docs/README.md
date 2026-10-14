@@ -9,7 +9,7 @@ Es lädt die eigentliche Anwendung über Composer-Pakete, die in `system/vendor`
 
 - `index.php` ist der Einstiegspunkt.
 - `setup.php` sorgt für die Composer-Umgebung und bietet eine Installationsoberfläche.
-- `system/core/ComposerManager.php` steuert Composer-Befehle wie `install`, `update`, `remove` und `dump-autoload`.
+- `system/core/Composer.php` steuert Composer-Befehle wie `install`, `update`, `remove` und `dump-autoload` (identisch mit `setup/Composer.php`, beide Dateien synchron halten).
 - Die Paketkonfiguration (`composer.json`) legt den Installationspfad auf `system/vendor` fest.
 
 ## Modularer Aufbau

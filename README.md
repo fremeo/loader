@@ -13,7 +13,7 @@ Dieses Projekt ist das zentrale Hauptprojekt und dient als modularer Loader/Inst
 
 Die Datei `index.php` ist der Einstiegspunkt:
 
-- `system/core/Packagist.php` und `system/core/ComposerManager.php` werden geladen.
+- `system/core/Packagist.php` und `system/core/Composer.php` werden geladen.
 - Eine Composer-Autoload-Datei aus `system/vendor/autoload.php` wird eingebunden.
 - Das Framework `fremeo/core` wird über:
   - `system/vendor/fremeo/core/init.php`

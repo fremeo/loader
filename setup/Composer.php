@@ -6,11 +6,16 @@ class Composer
     private string $phpBinary;
     private string $projectRoot;
     private int $timeoutSeconds = 300; // Timeout für lange Operationen
+    private ?string $capture = null; // gesetzt während run(): Ausgabe wird gesammelt statt ausgegeben
 
-    public function __construct(string $composerPath)
+    /**
+     * @param string      $composerPath Pfad zur composer.phar
+     * @param string|null $projectRoot  Projektordner (mit composer.json). Ohne Angabe: Ordner über dem aufrufenden Skript (setup/console.php).
+     */
+    public function __construct(string $composerPath, ?string $projectRoot = null)
     {
         $this->composerPath = $composerPath;
-        $this->projectRoot = dirname($_SERVER['SCRIPT_FILENAME']).'/../';
+        $this->projectRoot = $projectRoot ?? dirname($_SERVER['SCRIPT_FILENAME']).'/../';
         $this->phpBinary = $this->detectPhpBinary();
 
         if (!getenv('COMPOSER_HOME')) {
@@ -170,7 +175,7 @@ class Composer
     protected function eventsFor(string $command): array
     {
         return match (true) {
-            (bool)preg_match('/\binstall\b/', $command)           => ['post-install-cmd'],
+            (bool)preg_match('/\b(re)?install\b/', $command)     => ['post-install-cmd'],
             (bool)preg_match('/\b(update|require)\b/', $command)  => ['post-update-cmd'],
             (bool)preg_match('/\bremove\b/', $command)            => ['post-package-uninstall', 'post-update-cmd'],
             default                                               => [],
@@ -186,11 +191,66 @@ class Composer
         return function_exists('proc_open') && $this->phpBinary !== '';
     }
 
-    /** Ausgabe an den Browser bzw. die Konsole (in Tests überschreibbar). */
+    /** Ausgabe an den Browser bzw. die Konsole (in Tests überschreibbar). Während run() wird sie stattdessen gesammelt. */
     protected function emit(string $text): void
     {
+        if ($this->capture !== null) {
+            $this->capture .= $text;
+            return;
+        }
         echo $text;
         if (function_exists('flush')) { @ob_flush(); @flush(); }
+    }
+
+    /**
+     * Führt einen Composer-Befehl aus und gibt die komplette Ausgabe zurück: ['success' => bool, 'output' => string].
+     * Fehler des Setups (z.B. composer.phar fehlt) werden von stream() gemeldet und gelten als nicht erfolgreich.
+     */
+    public function run(string $command): array
+    {
+        $this->capture = '';
+        $errors = [];
+        try {
+            foreach ($this->stream($command) as $line) {
+                $errors[] = (string)$line;
+            }
+        } finally {
+            $output = $this->capture;
+            $this->capture = null;
+        }
+
+        return [
+            'success' => !$errors,
+            'output'  => trim($output . PHP_EOL . implode(PHP_EOL, $errors)),
+        ];
+    }
+
+    /**
+     * Installierte Pakete aus vendor/composer/installed.json (kein Prozessstart nötig):
+     * [Name => ['version', 'type', 'description', 'author']]. Den neuesten Stand liefert Packagist.
+     */
+    public function getInstalledPackages(): array
+    {
+        $root      = rtrim($this->projectRoot, '/\\');
+        $json      = json_decode((string)@file_get_contents($root . '/composer.json'), true);
+        $vendorDir = $root . '/' . trim((string)($json['config']['vendor-dir'] ?? 'vendor'), '/\\');
+        $installed = json_decode((string)@file_get_contents($vendorDir . '/composer/installed.json'), true);
+
+        $packages = [];
+        foreach ((array)($installed['packages'] ?? $installed ?? []) as $pkg) {
+            if (empty($pkg['name'])) {
+                continue;
+            }
+            $packages[$pkg['name']] = [
+                'version'     => $pkg['version'] ?? '',
+                'type'        => $pkg['type'] ?? '',
+                'description' => $pkg['description'] ?? '',
+                'author'      => $pkg['authors'][0]['name'] ?? '',
+            ];
+        }
+        ksort($packages);
+
+        return $packages;
     }
 
     /**
@@ -223,7 +283,7 @@ class Composer
 
         // Composer-Skripte wie "@php index.php migration" brauchen einen Prozess und laufen hier nicht: weglassen,
         // die Migration wird danach in der Konsole mit dem Befehl "migration" ausgeführt.
-        $skipScripts = preg_match('/\b(install|update|require|remove)\b/', $command) === 1 && !str_contains($command, '--no-scripts');
+        $skipScripts = preg_match('/\b(install|reinstall|update|require|remove)\b/', $command) === 1 && !str_contains($command, '--no-scripts');
         if ($skipScripts) {
             $command .= ' --no-scripts';
         }
@@ -328,7 +388,7 @@ class Composer
             'CURL_CA_BUNDLE' => '',
         ];
 
-        $env = array_merge($baseEnv, $envOverrides);
+        $env = array_filter(array_merge($baseEnv, $envOverrides), 'is_scalar'); // Arrays (z.B. argv aus $_SERVER) sind keine gültigen Umgebungsvariablen
 
         // Wähle Modus abhängig von SAPI
 		$isCli = (PHP_SAPI === 'cli');
@@ -399,7 +459,7 @@ class Composer
 
 							// Falls Composer die kurze Meldung direkt liefert, gib sie durch
 							if (preg_match('/^Command "([^"]+)" is not defined\./', $line)) {
-								echo $line . PHP_EOL;
+								$this->emit($line . PHP_EOL);
 								$suppressTrace = true;
 								continue;
 							}
@@ -409,7 +469,7 @@ class Composer
 								|| strpos($line, 'Exception trace:') !== false
 								|| strpos($line, 'Stack trace:') !== false) {
 								// kurze, konsistente Meldung
-								echo 'Command is not defined.' . PHP_EOL;
+								$this->emit('Command is not defined.' . PHP_EOL);
 								$suppressTrace = true;
 								continue;
 							}
@@ -419,10 +479,8 @@ class Composer
 								continue;
 							}
 
-							// Normale Ausgabe: sofort echoen (erscheint im Browser/Response)
-							echo $line . PHP_EOL;
-							// optional: flush, damit Browser die Ausgabe schrittweise erhält
-							if (function_exists('flush')) { @flush(); @ob_flush(); }
+							// Normale Ausgabe: sofort ausgeben (erscheint im Browser/Response)
+							$this->emit($line . PHP_EOL);
 						}
 					}
 				}
@@ -431,10 +489,10 @@ class Composer
 				if (!$status['running']) {
 					// Restpuffer lesen
 					while (($line = fgets($pipes[1])) !== false) {
-						echo rtrim($line, "\r\n") . PHP_EOL;
+						$this->emit(rtrim($line, "\r\n") . PHP_EOL);
 					}
 					while (($line = fgets($pipes[2])) !== false) {
-						echo rtrim($line, "\r\n") . PHP_EOL;
+						$this->emit(rtrim($line, "\r\n") . PHP_EOL);
 					}
 					break;
 				}
@@ -442,7 +500,7 @@ class Composer
 				if ((time() - $startTime) > $this->timeoutSeconds) {
 					proc_terminate($process);
 					file_put_contents($debugFile, "ERROR: Composer process timed out after {$this->timeoutSeconds}s\n", FILE_APPEND);
-					echo "Fehler: Composer-Prozess hat Timeout erreicht." . PHP_EOL;
+					$this->emit("Fehler: Composer-Prozess hat Timeout erreicht." . PHP_EOL);
 					break;
 				}
 
