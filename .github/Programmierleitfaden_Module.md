@@ -2,6 +2,49 @@
 
 Regeln für den Code in Modulen (`system/vendor/fremeo/<modul>`). Neue Erkenntnisse werden fortlaufend hier dokumentiert.
 
+## Standardstruktur eines Moduls
+
+Ein Modul folgt in der Regel dieser Struktur. Die Struktur dient als Referenz für KI und Entwickler, damit die Dateien nicht erst im Code gesucht werden müssen:
+
+```text
+system/vendor/<hersteller>/<modul>/
+├── composer.json
+├── README.md
+├── init.php
+├── start.php
+├── system/
+│   ├── migration/
+│   │   ├── 00000000000000_install.php
+│   │   ├── <DateTime>_update.php
+│   │   └── ...
+│   ├── template/
+│   │   ├── <seite>.tpl
+│   │   └── ...
+│   ├── <seite>.php
+│   └── ...
+├── tests/
+│   └── ...
+└── docs/
+    └── ...
+```
+
+Kurzform:
+
+```text
+<modul>/
+├── init.php
+├── start.php
+├── system/
+│   ├── migration/
+│   ├── template/
+│   ├── *.php
+│   └── ...
+├── tests/
+└── docs/
+```
+
+Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, wobei Templates in `system/template/`, Datenbank-Migrationen in `system/migration/` und die PHP-Seiten direkt im `system/`-Ordner liegen.
+
 ## 1. Grundprinzip: `$D` ist der Datenbaum
 
 - `$D` ist ein mehrdimensionaler Baum, der **von Anfang bis Ende** der Anfrage mit Daten angereichert wird und 1:1 an Smarty geht (`$D.PAGE.D.<Id>.LANGUAGE.D.DE.Title`).
