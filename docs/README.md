@@ -1,5 +1,7 @@
 # Dokumentation des Hauptprojekts
 
+**Für die Entwicklung von Modulen: [Programmierleitfaden für Module](Programmierleitfaden_Module.md)** (`$D`-Datenbaum, `$R`, Formulare, Tests, Stil).
+
 ## Überblick
 
 Dieses Hauptprojekt ist ein modularer Composer-Loader und bezeichnet sich selbst als `fremeo/loader`.
