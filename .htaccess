@@ -31,13 +31,20 @@ RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
 
 #FILE START ===============
 # data_c/ ist von aussen NICHT erreichbar. Bilder werden nur über file/ ausgeliefert:
-# 1. file/ab12345_12x12.jpg: Existiert die gecachte Datei in data_c/fremeo~core/file/, wird sie direkt ausgeliefert (END = keine weitere Regel).
-# (REQUEST_FILENAME ist hier nicht brauchbar: Apache schneidet den nicht vorhandenen Pfad ab "file" als PATH_INFO ab.)
+# 1a. file/ab12345_12.jpg: Existiert die gecachte Datei in data_c/fremeo~core/file/, wird sie direkt ausgeliefert.
+# 1b. file/ab12345_12x12.jpg: gleiche Logik, aber mit Breite/Höhe.
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} ^(.*)/file/([A-Za-z0-9_-]+_[0-9]+\.(jpg|jpeg|png|gif|webp|avif))$
+RewriteCond %1/data_c/fremeo~core/file/%2 -f
+RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	data_c/fremeo~core/file/$1_$2.$3 [END]
+
 RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} ^(.*)/file/([A-Za-z0-9_-]+_[0-9]+x[0-9]+\.(jpg|jpeg|png|gif|webp|avif))$
 RewriteCond %1/data_c/fremeo~core/file/%2 -f
 RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	data_c/fremeo~core/file/$1_$2x$3.$4 [END]
 
-# 2. Existiert die Datei NICHT, wird sie dynamisch erzeugt (get_file.php legt sie im Cache ab, der nächste Aufruf trifft Regel 1)
+# 2a. Existiert die Datei NICHT, wird sie dynamisch erzeugt; eine einzelne Zahl skaliert die längste Seite auf diese Größe ohne freie Fläche.
+# 2b. Breite/Höhe bleibt unverändert.
+RewriteRule ^file/([A-Za-z0-9-]+)\.(jpg|jpeg|png|gif|webp|avif)$	index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[size]=$2&R[extension]=$3 [L]
+RewriteRule ^file/([A-Za-z0-9-]+)_([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[size]=$2&R[extension]=$3 [L]
 RewriteRule ^file/([A-Za-z0-9-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L]
 #FILE ENDE ================
 
@@ -47,7 +54,7 @@ RewriteRule ^file/([A-Za-z0-9-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif
 RewriteRule ^setup/ - [L]
 
 # Alles andere geht an index.php (auch data_c/ und data/, diese sind nie direkt erreichbar).
-RewriteRule ^(.*)$			index.php?D[SEO_URL]=$1 [QSA,L]
+RewriteRule ^(.*)$			index.php?R[SEO_URL]=$1 [QSA,L]
 
 
 #Performance Optimierung ==============
