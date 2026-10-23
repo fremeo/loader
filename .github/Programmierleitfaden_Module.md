@@ -117,4 +117,5 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - Änderungen an Dateien nicht gleichzeitig per Editor und Terminal ausführen (die zweite überschreibt die erste).
 
 ## 10. Informationen
+- Verbindliche, laufend gepflegte Regeln für KI und Entwickler: `system/vendor/fremeo/core/docs/Entwicklungsrichtlinien_KI.md` (vor Änderungen lesen).
 - Weitere informationen könnten im docs/ Ordner des Haupt Projekts oder je Modul hinterlegt sein, diese detalierte Beschreibung ggf. zur Nutzung der Klassen liefert.
