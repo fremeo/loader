@@ -10,6 +10,13 @@
 
 Options +FollowSymLinks -Indexes
 
+# Oeffentliche Cache-Dateien sind immer statisch, auch nach internen Rewrites.
+<If "-f '%{REQUEST_FILENAME}' && %{REQUEST_FILENAME} =~ m#/data_c/public/#">
+	Options -Indexes -ExecCGI -MultiViews
+	SetHandler default-handler
+	AcceptPathInfo Off
+</If>
+
 RewriteEngine on
 
 
@@ -30,6 +37,15 @@ RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
 #END Zugriff auf Public Dateien ======================
 
 #FILE START ===============
+# Gesamten Public-Cache ausschliesslich ueber die statische Positivliste ausliefern.
+RewriteRule ^data_c(?:/|$) - [F,END,NC]
+RewriteRule ^file/(?:.*[./])?(?:php[0-9]*|phps|pht|phtml|phar|cgi|fcgi|pl|py|rb|asp|aspx|shtml|htaccess)(?:[./]|$) - [F,END,NC]
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} ^(.*)/file/((?:[A-Za-z0-9_-]+(?:[.-][A-Za-z0-9_-]+)*/)+[A-Za-z0-9_-]+(?:[.-][A-Za-z0-9_-]+)*\.(?:css|js|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|eot))$
+RewriteCond %1/data_c/public/%2 -f
+RewriteRule ^file/(.+/.+)$ data_c/public/$1 [END]
+RewriteRule ^file/[^/]+/ - [R=404,END,NC]
+RewriteRule ^file/[A-Za-z0-9_-]+$ - [R=404,END,NC]
+
 # data_c/ ist von aussen NICHT erreichbar. Bilder werden nur über file/ ausgeliefert:
 # 1a. file/ab12345_12.jpg: Existiert die gecachte Datei in data_c/fremeo~core/file/, wird sie direkt ausgeliefert.
 # 1b. file/ab12345_12x12.jpg: gleiche Logik, aber mit Breite/Höhe.

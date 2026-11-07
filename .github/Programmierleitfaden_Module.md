@@ -90,9 +90,17 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - Smarty läuft mit Security-Policy: nur freigegebene PHP-Funktionen (`date`, `count`, `in_array`, `strtolower`, `implode` ...). Was fehlt, im Pfad der PHP-Seite vorbereiten oder in `start.php` freigeben.
 - Ausgabe immer escapen (`|escape`), auch in `data-`-Attributen und JavaScript-Strings (`|escape:'javascript'`).
 - Fehlende Felder im Template mit `|default:''` abfangen (nicht gesetzte Felder fehlen im `$D`).
-- Eingabefelder über `{input p=[...]}`; der Name spiegelt das Pattern (`D[PAGE][D][{$id}][Title]`).
+- Formularelemente bevorzugt ueber `{input p=[...]}`; der Name spiegelt das Pattern (`D[PAGE][D][{$id}][Title]`). Fehlt ein Element oder muss `input.tpl` erweitert werden, vor einer Erweiterung oder eigenen Ersatzloesung den Benutzer nach dem gewuenschten Vorgehen fragen.
 - JavaScript in `{literal}...{/literal}`. Zähler (z.B. angezeigte Bilder) im Template mit Smarty-Variablen führen, wenn das Template selbst filtert.
 - Bibliotheken (`type: library`) haben weder Tabs noch Templates und kommen in Admin-Listen nicht vor.
+- Moduluebergreifende Verwaltungsseiten (z.B. Einstellungen und Sprachvariablen) greifen nur auf aktive Module zu: deaktivierte Module besitzen keine initialisierten Dienste. Ihre gespeicherten Werte bleiben erhalten und werden nach dem Aktivieren wieder angezeigt.
+
+### Verbindliche Aktionsleiste im Backend
+
+- Backend-Tabellen, Listen und andere Formulare erhalten eine dauerhaft sichtbare untere Aktionsleiste wie in `admin__menu.list.tpl`. Sie liegt im Block `inner_footer` ausserhalb des scrollbaren Inhalts (`inner-frame`), reserviert ihren eigenen Platz und verdeckt auch am Scrollende keine Zeilen oder Eingaben. Kein schwebendes Overlay mit `position: fixed`.
+- **Links:** Speichern und Abbrechen. Speichern ist mit dem zugehoerigen Formular ueber `type="submit"` und `form="<formular-id>"` verbunden. Abbrechen verwirft ungespeicherte Eingaben ohne Speichern oder Loeschen.
+- **Rechts:** je nach Seite Paging, Filter oder weitere formularbezogene Funktionen. Filter und andere Aktionen duerfen nicht versehentlich das Speicherformular absenden; ihren Aktionstyp bzw. ihre Formularzuordnung explizit setzen.
+- Theme-faehige Bootstrap-Klassen verwenden, beispielsweise `bg-body-tertiary border-top p-2`; keine fest hellen Hintergrundfarben. Die beiden Bereiche mit Flexbox links/rechts ausrichten und auf schmalen Ansichten umbrechen lassen.
 
 ## 7. Composer und Module
 

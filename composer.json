@@ -16,8 +16,15 @@
         "phploader/smarty4life": "*",
         "symfony/filesystem": "^8.1",
         "symfony/finder": "*",
-        "intervention/image": "*"
+        "intervention/image": "*",
+        "matthiasmullie/minify": "^1.3.76",
+        "wikimedia/css-sanitizer": "^6.0"
         
+    },
+    "autoload": {
+        "psr-4": {
+            "fremeo\\frontend\\": "system/vendor/fremeo/frontend/system/core/"
+        }
     },
     "scripts": {
         "post-install-cmd": [
