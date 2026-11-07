@@ -104,9 +104,13 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 
 ## 7. Composer und Module
 
+- Modul-Eltern ausschliesslich mit `extra.module-parent` in `composer.json` deklarieren (z.B. `"extra": {"module-parent": "fremeo/frontend"}`). Das Elternpaket muss auch unter `require` stehen. Paketnamen besitzen keine Vererbungsbedeutung; `__` bleibt nur fuer TPL-Dateien und Theme-Ableitungen bestehen. Globale Patterns und Dienste bleiben unveraendert.
+
 - `Composer.php` im Core und `setup/Composer.php` sind **identisch** (das Setup kann den Core bei der Installation noch nicht laden). Änderungen immer in beide kopieren, `ComposerSyncTest` prüft das.
 - Das Setup lädt nur seine Kopie, das Projekt nur die des Cores.
-- Neue Core-Funktionen, die Module brauchen, erst im Core taggen. Module nennen die Mindestversion des Cores in der `composer.json` (z.B. `>=0.0.4 <1.0`).
+- Die Modulversion wird im Feld `version` der jeweiligen `composer.json` gepflegt. Bei einer Tag-Veroeffentlichung muss der Release-Ablauf die Version automatisch vor dem Taggen erhoehen und committen; Version und Tag muessen uebereinstimmen (z.B. `0.1.5` und `v0.1.5`). SemVer verwenden: Patch fuer kompatible Fehlerkorrekturen, Minor fuer kompatible Funktionen, Major fuer inkompatible Aenderungen; bei `0.x` Kompatibilitaetsgrenzen ausdruecklich pruefen. Bestehende Tags nicht nachtraeglich verschieben.
+- Benoetigt eine Aenderung eine neuere Funktion, Datenstruktur oder einen neuen Template-Block eines anderen Moduls oder des Cores, muss dessen Mindestversion unter `require` in der `composer.json` des abhaengigen Moduls angehoben werden. Zuerst die Abhaengigkeit mit der benoetigten Version veroeffentlichen, danach das abhaengige Modul. Keine Versionsanhebung ohne tatsaechlichen Bedarf; kompatible Obergrenzen beibehalten (z.B. `>=0.1.5 <1.0`).
+- Vor einer Veroeffentlichung pruefen, dass Composer keine aeltere, funktional unzureichende Abhaengigkeit installieren kann. Ein vorhandenes `composer.lock` muss zum neuen Constraint passen; ein reines `composer install` aktualisiert einen veralteten Lock-Stand nicht automatisch.
 - Bei `0.0.x` bedeutet `^0.0.4` genau diese Version, deshalb die Spanne verwenden.
 
 ## 8. Tests
@@ -122,6 +126,7 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - Code **kurz** und lesbar halten, wie ein Mensch ihn schreibt: keine Abstraktionen für einmalige Dinge, keine Fehlerbehandlung für Fälle, die nicht vorkommen, nur an Systemgrenzen (Formular, Dateien, Netz) prüfen.
 - Kommentare erklären das Warum, nicht das Wie. Deutsch, einzeilig.
 - Bestehende Dateien bearbeiten statt neue anlegen. Nichts umbauen, was nicht verlangt ist.
+- Bei unklarer Umsetzung immer vor der Aenderung nachfragen; Anforderungen nicht eigenmaechtig interpretieren und umsetzen.
 - Änderungen an Dateien nicht gleichzeitig per Editor und Terminal ausführen (die zweite überschreibt die erste).
 
 ## 10. Informationen

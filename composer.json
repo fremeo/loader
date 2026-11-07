@@ -1,15 +1,16 @@
 {
     "name": "fremeo/loader",
+    "version": "1.0.3",
     "description": "A phpApp loader for PHP projects: installation, package management, and configuration all in one.",
     "license": "MIT",
     "type": "project",
     "keywords": ["fremeo"],
     "require": {
         "php": "^8.0",
-		"fremeo/core": ">=0.0.4 <1.0",
+		"fremeo/core": ">=0.1.0 <1.0",
         "fremeo/gallery": "*",
         "fremeo/blog": "*",
-        "fremeo/frontend": "*",
+        "fremeo/frontend": ">=0.1.0 <1.0",
         "fremeo/page": "*",
         "fremeo/shop": "*",
         "phploader/cdata": "*",
