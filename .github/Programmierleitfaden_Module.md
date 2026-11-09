@@ -109,6 +109,7 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - `Composer.php` im Core und `setup/Composer.php` sind **identisch** (das Setup kann den Core bei der Installation noch nicht laden). Änderungen immer in beide kopieren, `ComposerSyncTest` prüft das.
 - Das Setup lädt nur seine Kopie, das Projekt nur die des Cores.
 - Die Modulversion wird im Feld `version` der jeweiligen `composer.json` gepflegt. Bei einer Tag-Veroeffentlichung muss der Release-Ablauf die Version automatisch vor dem Taggen erhoehen und committen; Version und Tag muessen uebereinstimmen (z.B. `0.1.5` und `v0.1.5`). SemVer verwenden: Patch fuer kompatible Fehlerkorrekturen, Minor fuer kompatible Funktionen, Major fuer inkompatible Aenderungen; bei `0.x` Kompatibilitaetsgrenzen ausdruecklich pruefen. Bestehende Tags nicht nachtraeglich verschieben.
+- Bei jeder Modulaenderung automatisch den Changelog aktualisieren; fehlt er, `CHANGELOG.md` im Modul erstellen. Aenderungen zunaechst unter `Unreleased`, beim Versions-/Release-Schritt unter der passenden Version mit Datum fuehren und vor dem Taggen mitcommitten. Vorhandenes Format respektieren und keine ungesicherte Historie erfinden.
 - Benoetigt eine Aenderung eine neuere Funktion, Datenstruktur oder einen neuen Template-Block eines anderen Moduls oder des Cores, muss dessen Mindestversion unter `require` in der `composer.json` des abhaengigen Moduls angehoben werden. Zuerst die Abhaengigkeit mit der benoetigten Version veroeffentlichen, danach das abhaengige Modul. Keine Versionsanhebung ohne tatsaechlichen Bedarf; kompatible Obergrenzen beibehalten (z.B. `>=0.1.5 <1.0`).
 - Vor einer Veroeffentlichung pruefen, dass Composer keine aeltere, funktional unzureichende Abhaengigkeit installieren kann. Ein vorhandenes `composer.lock` muss zum neuen Constraint passen; ein reines `composer install` aktualisiert einen veralteten Lock-Stand nicht automatisch.
 - Bei `0.0.x` bedeutet `^0.0.4` genau diese Version, deshalb die Spanne verwenden.
@@ -130,5 +131,6 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - Änderungen an Dateien nicht gleichzeitig per Editor und Terminal ausführen (die zweite überschreibt die erste).
 
 ## 10. Informationen
+- Page-Builder-Konzept: `system/vendor/fremeo/core/docs/Konzept_Page_Builder.md`. Bei jeder Builder-Aenderung oder -Erweiterung im selben Arbeitsschritt aktualisieren; offene Entscheidungen vor Umsetzung klaeren.
 - Verbindliche, laufend gepflegte Regeln für KI und Entwickler: `system/vendor/fremeo/core/docs/Entwicklungsrichtlinien_KI.md` (vor Änderungen lesen).
 - Weitere informationen könnten im docs/ Ordner des Haupt Projekts oder je Modul hinterlegt sein, diese detalierte Beschreibung ggf. zur Nutzung der Klassen liefert.

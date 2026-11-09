@@ -1,6 +1,6 @@
 {
     "name": "fremeo/loader",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "A phpApp loader for PHP projects: installation, package management, and configuration all in one.",
     "license": "MIT",
     "type": "project",
