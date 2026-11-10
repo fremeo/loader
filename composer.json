@@ -7,19 +7,7 @@
     "keywords": ["fremeo"],
     "require": {
         "php": "^8.0",
-		"fremeo/core": ">=0.0.7 <1.0",
-        "fremeo/gallery": "*",
-        "fremeo/blog": "*",
-        "fremeo/frontend": ">=0.0.1 <1.0",
-        "fremeo/page": "*",
-        "fremeo/shop": "*",
-        "phploader/cdata": "*",
-        "phploader/smarty4life": "*",
-        "symfony/filesystem": "^8.1",
-        "symfony/finder": "*",
-        "intervention/image": "*",
-        "matthiasmullie/minify": "^1.3.76",
-        "wikimedia/css-sanitizer": "^6.0"
+		"fremeo/core": ">=0.0.7 <1.0"
         
     },
     "autoload": {
