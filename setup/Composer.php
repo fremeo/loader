@@ -5,8 +5,8 @@ class Composer
     private string $composerPath;
     private string $phpBinary;
     private string $projectRoot;
-    private int $timeoutSeconds = 300; // Timeout für lange Operationen
     private ?string $capture = null; // gesetzt während run(): Ausgabe wird gesammelt statt ausgegeben
+    protected ?int $shellExitCode = null;
 
     /**
      * @param string      $composerPath Pfad zur composer.phar
@@ -30,6 +30,9 @@ class Composer
     $short = PHP_MAJOR_VERSION . PHP_MINOR_VERSION;           // z.B. 82
 
     $candidates = [
+        PHP_SAPI === 'cli' ? PHP_BINARY : '',
+        "/opt/alt/php{$short}/usr/bin/php",
+        "/opt/plesk/php/{$majorMinor}/bin/php",
         // Windows / XAMPP Standard
         'C:\\xampp\\php\\php.exe',
         
@@ -90,7 +93,7 @@ class Composer
     }
 
 
-    return false;
+    return '';
 }
 
 
@@ -100,6 +103,7 @@ class Composer
      */
     protected function shell(string $command): ?string
     {
+        $this->shellExitCode = null;
         $command .= ' 2>&1';
 
         if (function_exists('proc_open')) {
@@ -107,7 +111,7 @@ class Composer
             if (is_resource($process)) {
                 $out = stream_get_contents($pipes[1]);
                 fclose($pipes[1]);
-                proc_close($process);
+                $this->shellExitCode = proc_close($process);
                 return (string)$out;
             }
         }
@@ -115,16 +119,16 @@ class Composer
             $handle = @popen($command, 'r');
             if (is_resource($handle)) {
                 $out = stream_get_contents($handle);
-                pclose($handle);
+                $this->shellExitCode = pclose($handle);
                 return (string)$out;
             }
         }
+        if (function_exists('exec')) {
+            @exec($command, $lines, $this->shellExitCode);
+            return implode(PHP_EOL, $lines);
+        }
         if (function_exists('shell_exec')) {
             return (string)@shell_exec($command);
-        }
-        if (function_exists('exec')) {
-            @exec($command, $lines);
-            return implode(PHP_EOL, $lines);
         }
 
         return null;
@@ -135,12 +139,12 @@ class Composer
      * Ohne proc_open kann Composer selbst keine Skripte starten, deshalb führt das Setup sie anhand der composer.json aus.
      * "@php ..." läuft mit der gefundenen PHP-CLI, andere "@..."-Verweise werden übersprungen.
      */
-    protected function runScripts(string $event): void
+    protected function runScripts(string $event): ?string
     {
         $json = json_decode((string)@file_get_contents($this->projectRoot . '/composer.json'), true);
         $commands = (array)($json['scripts'][$event] ?? []);
         if (!$commands) {
-            return;
+            return null;
         }
 
         $this->emit(PHP_EOL . "> Composer-Skript {$event}" . PHP_EOL);
@@ -152,23 +156,24 @@ class Composer
 
             if (str_starts_with($command, '@php ')) {
                 if ($this->phpBinary === '') {
-                    $this->emit('Fehler: Es wurde keine PHP-CLI gefunden, das Skript kann nicht ausgeführt werden.' . PHP_EOL);
-                    return;
+                    return 'Fehler: Es wurde keine PHP-CLI gefunden, das Skript kann nicht ausgeführt werden.';
                 }
                 $command = escapeshellarg($this->phpBinary) . ' ' . substr($command, 5);
             } elseif (str_starts_with($command, '@')) {
-                $this->emit('Übersprungen (vom Setup nicht unterstützt).' . PHP_EOL);
-                continue;
+                return "Fehler: Composer-Skript {$original} wird ohne Prozessstart nicht unterstuetzt. Bitte per PHP-CLI ausfuehren.";
             }
 
             $output = $this->shell($command);
             if ($output === null) {
-                $this->emit('Fehler: Auf diesem Server kann kein Prozess gestartet werden (proc_open, popen, shell_exec und exec sind gesperrt).' . PHP_EOL
-                    . 'Führe das Skript per SSH oder als Cron-Job im Projektordner aus:' . PHP_EOL . "  {$original}" . PHP_EOL);
-                return;
+                return 'Fehler: Auf diesem Server kann kein Prozess gestartet werden (proc_open, popen, shell_exec und exec sind gesperrt).' . PHP_EOL
+                    . 'Führe das Skript per SSH oder als Cron-Job im Projektordner aus:' . PHP_EOL . "  {$original}";
             }
             $this->emit($output . PHP_EOL);
+            if ($this->shellExitCode !== 0) {
+                return "Fehler: Composer-Skript {$original} fehlgeschlagen (Exitcode " . ($this->shellExitCode ?? 'unbekannt') . ').';
+            }
         }
+        return null;
     }
 
     /** Composer-Events, die zu einem Befehl gehören (so wie Composer sie selbst auslösen würde). */
@@ -264,7 +269,9 @@ class Composer
 
         // "run-script <event>": Composer kann ohne proc_open keine Skripte starten, das Setup führt sie aus der composer.json aus
         if (preg_match('/\brun-script\s+(\S+)/', $command, $m)) {
-            $this->runScripts($m[1]);
+            if (($error = $this->runScripts($m[1])) !== null) {
+                yield $error;
+            }
             return;
         }
 
@@ -278,16 +285,15 @@ class Composer
             return;
         }
 
-        @set_time_limit(0);
-        @ini_set('memory_limit', '2G');
-
         // Composer-Skripte wie "@php index.php migration" brauchen einen Prozess und laufen hier nicht: weglassen,
         // die Migration wird danach in der Konsole mit dem Befehl "migration" ausgeführt.
         $skipScripts = preg_match('/\b(install|reinstall|update|require|remove)\b/', $command) === 1 && !str_contains($command, '--no-scripts');
         if ($skipScripts) {
             $command .= ' --no-scripts';
         }
+        $environment = [];
         foreach (['COMPOSER_NO_INTERACTION' => '1', 'COMPOSER_HOME' => sys_get_temp_dir(), 'COMPOSER_CAFILE' => '', 'SSL_CERT_FILE' => '', 'CURL_CA_BUNDLE' => ''] as $k => $v) {
+            $environment[$k] = getenv($k);
             putenv("$k=$v");
         }
         chdir($this->projectRoot);
@@ -315,31 +321,81 @@ class Composer
 
             file_put_contents($debugFile, "EXIT: $exit\n", FILE_APPEND);
 
-            if ($skipScripts && $exit === 0) {
+            if ($exit !== 0) {
+                yield "Fehler: Composer fehlgeschlagen (Exitcode {$exit}). Details siehe Ausgabe.";
+                return;
+            }
+            if ($skipScripts && !str_contains($command, '--dry-run')) {
                 foreach ($this->eventsFor($command) as $event) {
-                    $this->runScripts($event);
+                    if (($error = $this->runScripts($event)) !== null) {
+                        yield $error;
+                        return;
+                    }
                 }
             }
         } catch (\Throwable $e) {
             file_put_contents($debugFile, 'ERROR: ' . $e->getMessage() . "\n", FILE_APPEND);
             yield 'Fehler: ' . $e->getMessage();
+        } finally {
+            foreach ($environment as $key => $value) {
+                putenv($value === false ? $key : "$key=$value");
+            }
         }
     }
 
     public function stream(string $command): Generator
     {
-        // Arbeitsverzeichnis setzen
-        chdir($this->projectRoot);
-
-        // Verbose
-        $command = '-vv ' . $command;
-
-        // Ohne proc_open (oder ohne PHP-CLI) läuft Composer im selben Prozess
-        if (!$this->canSpawnProcess()) {
-            yield from $this->streamInProcess($command);
-            return;
+        $cwd = getcwd();
+        $lock = null;
+        $abort = null;
+        $executionTime = ini_get('max_execution_time');
+        $mutating = preg_match('/\b(install|reinstall|update|require|remove|run-script)\b/', $command) === 1;
+        try {
+            if ($mutating) {
+                $root = realpath($this->projectRoot);
+                if ($root === false) {
+                    yield 'Fehler: Composer-Projektordner nicht gefunden.';
+                    return;
+                }
+                $lock = fopen(sys_get_temp_dir() . '/fremeo-composer-' . hash('sha256', $root) . '.lock', 'c');
+                if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
+                    yield 'Fehler: Paketverwaltung bereits aktiv oder Updatesperre nicht verfuegbar. Bitte spaeter erneut versuchen.';
+                    return;
+                }
+                $abort = ignore_user_abort(true);
+                set_time_limit(0);
+            }
+            if (!chdir($this->projectRoot)) {
+                yield 'Fehler: Composer-Projektordner nicht zugaenglich.';
+                return;
+            }
+            if (!is_readable($this->composerPath)) {
+                yield "Fehler: composer.phar nicht lesbar: {$this->composerPath}";
+                return;
+            }
+            $command = '-vv ' . $command . ' --no-interaction --no-ansi';
+            if (!$this->canSpawnProcess()) {
+                yield from $this->streamInProcess($command);
+            } else {
+                yield from $this->streamProcess($command);
+            }
+        } catch (\Throwable $e) {
+            yield 'Fehler: ' . $e->getMessage();
+        } finally {
+            if ($cwd !== false) chdir($cwd);
+            if ($abort !== null) {
+                ignore_user_abort((bool)$abort);
+                set_time_limit((int)$executionTime);
+            }
+            if (is_resource($lock)) {
+                flock($lock, LOCK_UN);
+                fclose($lock);
+            }
         }
+    }
 
+    protected function streamProcess(string $command): Generator
+    {
         // Prüfen, ob php binary und composer.phar existieren
         $debugFile = $this->projectRoot . '/composer_debug.txt';
         file_put_contents($debugFile, "=== START " . date('c') . " ===\n", FILE_APPEND);
@@ -390,24 +446,11 @@ class Composer
 
         $env = array_filter(array_merge($baseEnv, $envOverrides), 'is_scalar'); // Arrays (z.B. argv aus $_SERVER) sind keine gültigen Umgebungsvariablen
 
-        // Wähle Modus abhängig von SAPI
-		$isCli = (PHP_SAPI === 'cli');
-
-		if ($isCli) {
-			// echtes Passthrough in CLI: Composer schreibt direkt in die Konsole
-			$descriptorSpec = [
-				0 => ['pipe', 'r'],
-				1 => ['file', 'php://stdout', 'w'],
-				2 => ['file', 'php://stderr', 'w'],
-			];
-		} else {
-			// Nicht-CLI: wir wollen die Ausgabe lesen und selbst echoen (damit sie im Browser erscheint)
-			$descriptorSpec = [
-				0 => ['pipe', 'r'],
-				1 => ['pipe', 'w'],
-				2 => ['pipe', 'w'],
-			];
-		}
+        $descriptorSpec = [
+            0 => ['pipe', 'r'],
+            1 => ['pipe', 'w'],
+            2 => ['redirect', 1],
+        ];
 
 		$start = microtime(true);
 		$process = proc_open($fullCommand, $descriptorSpec, $pipes, $this->projectRoot, $env);
@@ -422,103 +465,26 @@ class Composer
 			fclose($pipes[0]);
 		}
 
-		$startTime = time();
-
-		if ($isCli) {
-			// CLI passthrough: Composer schreibt direkt in die Konsole; wir warten nur auf Ende
-			while (true) {
-				$status = proc_get_status($process);
-				if (!$status['running']) break;
-				if ((time() - $startTime) > $this->timeoutSeconds) {
-					proc_terminate($process);
-					file_put_contents($debugFile, "ERROR: Composer process timed out after {$this->timeoutSeconds}s\n", FILE_APPEND);
-					yield "Fehler: Composer-Prozess hat Timeout erreicht.";
-					break;
-				}
-				usleep(20000);
-			}
-		} else {
-			// Nicht-CLI: Capture-Modus, zeilenweise lesen und sofort ausgeben (oder yield)
-			stream_set_blocking($pipes[1], false);
-			stream_set_blocking($pipes[2], false);
-
-			$suppressTrace = false;
-
-			while (true) {
-				$read = [$pipes[1], $pipes[2]];
-				$write = null;
-				$except = null;
-				$num = @stream_select($read, $write, $except, 0, 200000);
-
-				if ($num === false) break;
-
-				if ($num > 0) {
-					foreach ($read as $r) {
-						while (($line = fgets($r)) !== false) {
-							$line = rtrim($line, "\r\n");
-
-							// Falls Composer die kurze Meldung direkt liefert, gib sie durch
-							if (preg_match('/^Command "([^"]+)" is not defined\./', $line)) {
-								$this->emit($line . PHP_EOL);
-								$suppressTrace = true;
-								continue;
-							}
-
-							// Wenn wir Symfony Exception-Header sehen, ersetzen wir durch kurze Meldung
-							if (strpos($line, 'Symfony\\Component\\Console\\Exception\\CommandNotFoundException') !== false
-								|| strpos($line, 'Exception trace:') !== false
-								|| strpos($line, 'Stack trace:') !== false) {
-								// kurze, konsistente Meldung
-								$this->emit('Command is not defined.' . PHP_EOL);
-								$suppressTrace = true;
-								continue;
-							}
-
-							if ($suppressTrace) {
-								// unterdrücke Stacktrace-Zeilen
-								continue;
-							}
-
-							// Normale Ausgabe: sofort ausgeben (erscheint im Browser/Response)
-							$this->emit($line . PHP_EOL);
-						}
-					}
-				}
-
-				$status = proc_get_status($process);
-				if (!$status['running']) {
-					// Restpuffer lesen
-					while (($line = fgets($pipes[1])) !== false) {
-						$this->emit(rtrim($line, "\r\n") . PHP_EOL);
-					}
-					while (($line = fgets($pipes[2])) !== false) {
-						$this->emit(rtrim($line, "\r\n") . PHP_EOL);
-					}
-					break;
-				}
-
-				if ((time() - $startTime) > $this->timeoutSeconds) {
-					proc_terminate($process);
-					file_put_contents($debugFile, "ERROR: Composer process timed out after {$this->timeoutSeconds}s\n", FILE_APPEND);
-					$this->emit("Fehler: Composer-Prozess hat Timeout erreicht." . PHP_EOL);
-					break;
-				}
-
-				usleep(20000);
-			}
-		}
-
-		// Prozess beenden und Exitcode holen
-		$exit = proc_close($process);
+        stream_set_blocking($pipes[1], false);
+        do {
+            $chunk = fread($pipes[1], 8192);
+            if ($chunk !== false && $chunk !== '') $this->emit($chunk);
+            $status = proc_get_status($process);
+            if ($status['running']) usleep(20000);
+        } while ($status['running']);
+        $this->emit((string)stream_get_contents($pipes[1]));
+        fclose($pipes[1]);
+        // PHP < 8.3 verliert den Exitcode bei proc_close() nach proc_get_status().
+        $closedExit = proc_close($process);
+        $exit = $status['exitcode'] >= 0 ? $status['exitcode'] : $closedExit;
 		$duration = microtime(true) - $start;
 
 		// Debug-Log
 		$log = "EXIT: $exit\nDURATION: {$duration}s\n";
 		file_put_contents($debugFile, $log, FILE_APPEND);
 
-		// Wenn du weiterhin Generator-yields brauchst, yield hier den Exitcode
-		#yield "EXIT: $exit";
-
-
+        if ($exit !== 0) {
+            yield "Fehler: Composer fehlgeschlagen (Exitcode {$exit}). Details siehe Ausgabe.";
+        }
     }
 }

@@ -37,6 +37,14 @@ Das bedeutet: Alle Pakete werden in den Ordner `system/vendor` installiert und s
 
 ## Setup und Paketverwaltung
 
+Die optionale Paketverwaltung liegt ausschliesslich unter `setup/Composer.php`
+und `setup/composer.phar`. Der Core referenziert diese Dateien bei
+Installations-, Update-, Reinstall- und Deinstallationsaktionen. Ohne Setup
+bleiben Website, installierte Modulliste und Modulaktivierung nutzbar; nur
+Composer-Aktionen werden mit einem Hinweis gesperrt. Setup-Dateien nicht
+waehrend laufender Paketaktionen ersetzen. Es werden keine Composer-Kopien
+im Core oder Laufzeitkopien im Cache benoetigt.
+
 Die Datei `setup.php` sorgt dafür, dass die Umgebung existiert und Composer zur Verfügung steht:
 
 - Erzeugt notwendige Ordner wie `system/vendor`, `system/core` und `data_c`
