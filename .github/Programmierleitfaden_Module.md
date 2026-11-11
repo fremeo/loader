@@ -2,6 +2,10 @@
 
 Regeln für den Code in Modulen (`system/vendor/fremeo/<modul>`). Neue Erkenntnisse werden fortlaufend hier dokumentiert.
 
+Fuer Sprachvariablen gilt das [Konzept_Sprachvariablen.md](../system/vendor/fremeo/core/docs/Konzept_Sprachvariablen.md) als Zielkonzept. Jede Aenderung an den Sprachvariablen-Regeln oder ihrer Umsetzung muss die Konzeptdatei im selben Arbeitsschritt aktualisieren; keine automatische Dokumentgenerierung zur Laufzeit.
+
+Neue Projekte, Module und Seiten legen ihre Oberflaechentexte von Anfang an als Sprachvariablen im jeweiligen Modul unter `system/template/language/de.php` an und verwenden im Template `{i18n key="..." values=[...]}` statt fest eingebauter Texte. Waehrend der Entwicklung genuegt Deutsch. Vor jeder Veroeffentlichung muessen die mitgelieferten Texte zusaetzlich sinngemaess ins Englische uebersetzt und unter denselben Schluesseln in `system/template/language/en.php` hinterlegt sein; ICU-Platzhalter und deren Bedeutung erhalten. Bei jeder erneuten Ueberarbeitung einer bestehenden Seite deren Oberflaechentexte mitpruefen und noch fest eingebaute Texte in die Sprachdatei des zustaendigen Moduls portieren. Keine pauschale Migration unberuehrter Seiten.
+
 ## Standardstruktur eines Moduls
 
 Ein Modul folgt in der Regel dieser Struktur. Die Struktur dient als Referenz für KI und Entwickler, damit die Dateien nicht erst im Code gesucht werden müssen:
@@ -98,9 +102,17 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 ### Verbindliche Aktionsleiste im Backend
 
 - Backend-Tabellen, Listen und andere Formulare erhalten eine dauerhaft sichtbare untere Aktionsleiste wie in `admin__menu.list.tpl`. Sie liegt im Block `inner_footer` ausserhalb des scrollbaren Inhalts (`inner-frame`), reserviert ihren eigenen Platz und verdeckt auch am Scrollende keine Zeilen oder Eingaben. Kein schwebendes Overlay mit `position: fixed`.
+- Dies gilt ebenso fuer Bearbeitungsformulare aller Module (z.B. Gallery-Album bearbeiten), nicht nur fuer Core-Seiten. Keine zusaetzlichen Speichern-/Abbrechen-Buttons am Ende des scrollbaren Formularinhalts. Externe Submit-Buttons muessen auch Formularvalidierung, Upload-Warteschlangen und deren Sperr-/Wiederholungsverhalten unveraendert ausloesen.
 - **Links:** Speichern und Abbrechen. Speichern ist mit dem zugehoerigen Formular ueber `type="submit"` und `form="<formular-id>"` verbunden. Abbrechen verwirft ungespeicherte Eingaben ohne Speichern oder Loeschen.
 - **Rechts:** je nach Seite Paging, Filter oder weitere formularbezogene Funktionen. Filter und andere Aktionen duerfen nicht versehentlich das Speicherformular absenden; ihren Aktionstyp bzw. ihre Formularzuordnung explizit setzen.
 - Theme-faehige Bootstrap-Klassen verwenden, beispielsweise `bg-body-tertiary border-top p-2`; keine fest hellen Hintergrundfarben. Die beiden Bereiche mit Flexbox links/rechts ausrichten und auf schmalen Ansichten umbrechen lassen.
+
+### Horizontales Scrollen im Backend
+
+- Backend-Seiten aller Module muessen auf Desktop-Breiten ohne horizontalen Seiten- oder Inhalts-Scrollbalken auskommen. Formularfelder, Raster und Aktionsleisten an die verfuegbare Breite anpassen; lange Texte umbrechen und Flex-/Grid-Kindern bei Bedarf `min-width: 0` geben.
+- Bootstrap-Raster brauchen ausreichend Platz fuer ihre negativen Aussenabstaende. In ungepolsterten Formularen diese z.B. mit `row g-3 mx-0` ausgleichen, ohne die Abstaende zwischen den Feldern zu entfernen.
+- Ausnahme: Inhalte, die ihre Breite fachlich benoetigen (z.B. breite Datentabellen), duerfen gezielt innerhalb eines eigenen responsiven Scrollcontainers horizontal scrollen. Nicht die gesamte Seite verbreitern und Ueberlaeufe nicht pauschal mit `overflow-x: hidden` abschneiden.
+- Desktop-Ansichten bei mehreren Breiten und mit sichtbarer vertikaler Scrollleiste pruefen: ohne notwendige Ausnahme muss `scrollWidth <= clientWidth` fuer Dokument und Inhaltsbereich gelten.
 
 ## 7. Composer und Module
 
