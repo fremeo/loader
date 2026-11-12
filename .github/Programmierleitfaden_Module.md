@@ -4,6 +4,8 @@ Regeln für den Code in Modulen (`system/vendor/fremeo/<modul>`). Neue Erkenntni
 
 Fuer Sprachvariablen gilt das [Konzept_Sprachvariablen.md](../system/vendor/fremeo/core/docs/Konzept_Sprachvariablen.md) als Zielkonzept. Jede Aenderung an den Sprachvariablen-Regeln oder ihrer Umsetzung muss die Konzeptdatei im selben Arbeitsschritt aktualisieren; keine automatische Dokumentgenerierung zur Laufzeit.
 
+Fuer das Shop-Modul gilt [Konzept_Shop.md](../system/vendor/fremeo/shop/docs/Konzept_Shop.md). Bei jeder Anpassung oder Erweiterung des Konzepts sowie konzeptrelevanten Aenderungen seiner Umsetzung muss diese Markdown-Datei im selben Arbeitsschritt aktualisiert werden; ueberholte Aussagen ersetzen und Umsetzungsstand sowie zurueckgestellte Funktionen korrekt halten.
+
 Neue Projekte, Module und Seiten legen ihre Oberflaechentexte von Anfang an als Sprachvariablen im jeweiligen Modul unter `system/template/language/de.php` an und verwenden im Template `{i18n key="..." values=[...]}` statt fest eingebauter Texte. Waehrend der Entwicklung genuegt Deutsch. Vor jeder Veroeffentlichung muessen die mitgelieferten Texte zusaetzlich sinngemaess ins Englische uebersetzt und unter denselben Schluesseln in `system/template/language/en.php` hinterlegt sein; ICU-Platzhalter und deren Bedeutung erhalten. Bei jeder erneuten Ueberarbeitung einer bestehenden Seite deren Oberflaechentexte mitpruefen und noch fest eingebaute Texte in die Sprachdatei des zustaendigen Moduls portieren. Keine pauschale Migration unberuehrter Seiten.
 
 ## Standardstruktur eines Moduls
@@ -49,10 +51,17 @@ Kurzform:
 
 Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, wobei Templates in `system/template/`, Datenbank-Migrationen in `system/migration/` und die PHP-Seiten direkt im `system/`-Ordner liegen.
 
+### Datenbank-Patterns (verbindlich fuer alle Module)
+
+- Moduleigene Pattern-Definitionen liegen in `system/default/default.pattern.php` als PHP-Datei mit `return [...]`, nicht direkt in `init.php`.
+- `init.php` laedt die Datei in einer isolierten Closure und registriert das zurueckgegebene Array ausschliesslich beim eigenen `$C['<vendor/modul>']['CData']`. Keine gemeinsame `$Pattern`-Variable ueberschreiben: Modulinitialisierungen teilen sich den aufrufenden Scope.
+- Das vom Core bereitgestellte `default.global.pattern.php` bleibt davon getrennt und wird weiterhin zentral fuer jedes Modul registriert. Gemeinsame Definitionen nicht in Moduldateien duplizieren.
+- Beim Auslagern bestehender Patterns alle Pfade, Felder, Typen und Optionen unveraendert erhalten; eine Strukturmigration ist ein eigener Arbeitsschritt.
+
 ## 1. Grundprinzip: `$D` ist der Datenbaum
 
 - `$D` ist ein mehrdimensionaler Baum, der **von Anfang bis Ende** der Anfrage mit Daten angereichert wird und 1:1 an Smarty geht (`$D.PAGE.D.<Id>.LANGUAGE.D.DE.Title`).
-- `$D` bildet die Struktur des **Patterns** ab (siehe `init.php` des Moduls). Dieselbe Struktur steckt in den Namen der Formularfelder: `D[PAGE][D][<Id>][LANGUAGE][D][DE][Title]`.
+- `$D` bildet die Struktur des **Patterns** ab (siehe `system/default/default.pattern.php` des Moduls). Dieselbe Struktur steckt in den Namen der Formularfelder: `D[PAGE][D][<Id>][LANGUAGE][D][DE][Title]`.
 - `CData::get_object($D, $f)` und `set_object($D)` bauen die übergebene Variable auf. Sie **löschen nie fremde Daten** aus `$D`, sie ergänzen nur. Mehrere Abfragen (z.B. PAGE, danach LINK) füllen denselben Baum.
 - Deshalb gilt: Daten direkt in `$D` laden und im Template darauf zugreifen, **keine Kopien in Hilfsarrays** (`$R['PageEdit'] = [...]`) bauen. Ein neues Feld im Pattern ist dann ohne Änderung an der PHP-Seite im Template verfügbar (z.B. `DateTimeOriginal`).
 - Filtern, was angezeigt wird, macht das **Template** (z.B. nur aktive Bilder per `{if $img.Active|default:1}`), nicht die PHP-Seite. Die PHP-Seite reicht `Active` & Co. unverändert durch.
