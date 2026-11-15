@@ -1,0 +1,32 @@
+{
+    "name": "fremeo/loader",
+    "description": "A phpApp loader for PHP projects: installation, package management, and configuration all in one.",
+    "license": "MIT",
+    "type": "project",
+    "keywords": ["fremeo"],
+    "require": {
+        "php": "^8.0",
+		"fremeo/core": ">=0.0.7 <1.0"
+
+    },
+    "autoload": {
+        "psr-4": {
+            "fremeo\\frontend\\": "system/vendor/fremeo/frontend/system/core/"
+        }
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@php index.php migration"
+        ],
+        "post-update-cmd": [
+            "@php index.php migration"
+        ],
+        "post-package-uninstall": [
+			"@php index.php uninstall"
+        ]
+    },
+    "config": {
+        "vendor-dir": "system/vendor"
+    },
+	"prefer-stable": true
+}
