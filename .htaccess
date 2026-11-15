@@ -1,0 +1,85 @@
+# PHP Einstellungen. Nur mit mod_php moeglich, bei PHP-FPM/CGI wuerde php_value einen 500-Fehler ausloesen.
+# Dort stattdessen .user.ini oder php.ini verwenden.
+<IfModule mod_php.c>
+	php_value memory_limit 5000M
+	php_value max_input_vars 1000000
+	php_value max_execution_time 60
+	php_value post_max_size 400M
+	php_value upload_max_filesize 400M
+</IfModule>
+
+Options +FollowSymLinks -Indexes
+
+# Oeffentliche Cache-Dateien sind immer statisch, auch nach internen Rewrites.
+<If "-f '%{REQUEST_FILENAME}' && %{REQUEST_FILENAME} =~ m#/data_c/public/#">
+	Options -Indexes -ExecCGI -MultiViews
+	SetHandler default-handler
+	AcceptPathInfo Off
+</If>
+
+RewriteEngine on
+
+
+#von www zur nicht www umleiten.
+RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
+
+#SSL ON! (nicht fuer localhost)
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP_HOST} !^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
+
+#START Zugriff auf Public Dateien ====================
+#z.B. domain.cc/public/[plugin-name]/tpl/test.js
+RewriteCond %{REQUEST_URI} \.(txt|pdf|doc|js|css|html|otf|eot|svg|ttf|woff|woff2)$
+RewriteRule ^public/([^/]+)/(.*)$							system/$1/public/$2 [QSA,END]
+#END Zugriff auf Public Dateien ======================
+
+#FILE START ===============
+# Gesamten Public-Cache ausschliesslich ueber die statische Positivliste ausliefern.
+RewriteRule ^data_c(?:/|$) - [F,END,NC]
+RewriteRule ^file/(?:.*[./])?(?:php[0-9]*|phps|pht|phtml|phar|cgi|fcgi|pl|py|rb|asp|aspx|shtml|htaccess)(?:[./]|$) - [F,END,NC]
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} ^(.*)/file/((?:[A-Za-z0-9_-]+(?:[.-][A-Za-z0-9_-]+)*/)+[A-Za-z0-9_-]+(?:[.-][A-Za-z0-9_-]+)*\.(?:css|js|png|jpe?g|gif|webp|avif|svg|ico|woff2?|ttf|otf|eot))$
+RewriteCond %1/data_c/public/%2 -f
+RewriteRule ^file/(.+/.+)$ data_c/public/$1 [END]
+RewriteRule ^file/[^/]+/ - [R=404,END,NC]
+RewriteRule ^file/[A-Za-z0-9_-]+$ - [R=404,END,NC]
+
+# data_c/ ist von aussen NICHT erreichbar. Bilder werden nur über file/ ausgeliefert:
+# 1a. file/ab12345_12.jpg: Existiert die gecachte Datei in data_c/fremeo~core/file/, wird sie direkt ausgeliefert.
+# 1b. file/ab12345_12x12.jpg: gleiche Logik, aber mit Breite/Höhe.
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} ^(.*)/file/([A-Za-z0-9_-]+_[0-9]+\.(jpg|jpeg|png|gif|webp|avif))$
+RewriteCond %1/data_c/fremeo~core/file/%2 -f
+RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	data_c/fremeo~core/file/$1_$2.$3 [END]
+
+RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} ^(.*)/file/([A-Za-z0-9_-]+_[0-9]+x[0-9]+\.(jpg|jpeg|png|gif|webp|avif))$
+RewriteCond %1/data_c/fremeo~core/file/%2 -f
+RewriteRule ^file/([A-Za-z0-9_-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	data_c/fremeo~core/file/$1_$2x$3.$4 [END]
+
+# 2a. Existiert die Datei NICHT, wird sie dynamisch erzeugt; eine einzelne Zahl skaliert die längste Seite auf diese Größe ohne freie Fläche.
+# 2b. Breite/Höhe bleibt unverändert.
+RewriteRule ^file/([A-Za-z0-9-]+)\.(jpg|jpeg|png|gif|webp|avif)$	index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[size]=$2&R[extension]=$3 [L]
+RewriteRule ^file/([A-Za-z0-9-]+)_([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[size]=$2&R[extension]=$3 [L]
+RewriteRule ^file/([A-Za-z0-9-]+)_([0-9]+)x([0-9]+)\.(jpg|jpeg|png|gif|webp|avif)$	index.php?R[Page]=get_file&R[ModuleId]=fremeo/core&R[id]=$1&R[x]=$2&R[y]=$3&R[extension]=$4 [L]
+#FILE ENDE ================
+
+
+#Seo URL
+# setup-Ordner direkt ausliefern und PHP-Ausfuehrung erlauben
+RewriteRule ^setup/ - [L]
+
+# Alles andere geht an index.php (auch data_c/ und data/, diese sind nie direkt erreichbar).
+RewriteRule ^(.*)$			index.php?R[SEO_URL]=$1 [QSA,L]
+
+
+#Performance Optimierung ==============
+<IfModule mod_deflate.c>
+	AddOutputFilterByType DEFLATE text/css application/javascript image/svg+xml
+</IfModule>
+
+<IfModule mod_headers.c>
+	<FilesMatch "\.(js|css|gif|png|jpe?g|webp|avif|pdf|ico)$">
+		Header set Cache-Control "max-age=604800, public"
+	</FilesMatch>
+</IfModule>
