@@ -34,22 +34,20 @@ system/vendor/<hersteller>/<modul>/
     └── ...
 ```
 
-Kurzform:
-
-```text
-<modul>/
-├── init.php
-├── start.php
-├── system/
-│   ├── migration/
-│   ├── template/
-│   ├── *.php
-│   └── ...
-├── tests/
-└── docs/
-```
-
 Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, wobei Templates in `system/template/`, Datenbank-Migrationen in `system/migration/` und die PHP-Seiten direkt im `system/`-Ordner liegen.
+
+### Gemeinsames Admin-Fenster
+
+`include/window.tpl` stellt einen verschiebbaren modalen Dialog bereit. Mit
+`{include file="include/window.tpl" windowId="..." windowTitle=$title windowClose=$close windowContent=$content windowOk=$ok windowCancel=$cancel windowApply=$apply}`
+werden eindeutige ID, Titel, Schliessen-Beschriftung und zuvor mit `{capture}`
+erzeugte Inhalts- und Aktionsbereiche uebergeben. Die Standardaktionen stehen
+in der Reihenfolge OK (Speichern und schliessen), Abbrechen, Uebernehmen
+(Speichern ohne Schliessen); nicht benoetigte Aktionen koennen entfallen.
+Fuer abweichende Aktionsleisten bleibt `windowActions` verfuegbar. Das Fenster stellt Rahmen,
+Fokus, Escape, Schliessen und Pointer-Drag bereit; Speichern, Fehler und
+fachliche Aktionen implementiert die aufrufende Seite. Dynamische Inhalte
+vor dem Capture escapen. Das bestehende Builder-Fenster bleibt eigenstaendig.
 
 ### Datenbank-Patterns (verbindlich fuer alle Module)
 
@@ -62,10 +60,12 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 
 - `$D` ist ein mehrdimensionaler Baum, der **von Anfang bis Ende** der Anfrage mit Daten angereichert wird und 1:1 an Smarty geht (`$D.PAGE.D.<Id>.LANGUAGE.D.DE.Title`).
 - `$D` bildet die Struktur des **Patterns** ab (siehe `system/default/default.pattern.php` des Moduls). Dieselbe Struktur steckt in den Namen der Formularfelder: `D[PAGE][D][<Id>][LANGUAGE][D][DE][Title]`.
-- `CData::get_object($D, $f)` und `set_object($D)` bauen die übergebene Variable auf. Sie **löschen nie fremde Daten** aus `$D`, sie ergänzen nur. Mehrere Abfragen (z.B. PAGE, danach LINK) füllen denselben Baum.
+- `CData::get_object($D, $F)` ergänzt den Datenbaum und überschreibt vorhandene Schlüssel mit geladenen Werten; weitere vorhandene Zweige bleiben erhalten. Mehrere Abfragen (z.B. PAGE, danach LINK) können denselben Baum füllen. `set_object($D)` verarbeitet alle übergebenen Pattern-Zweige; Löschmarker und leere Werte können Daten entfernen.
+- `get_object()` und `set_object()` niemals innerhalb einer Schleife aufrufen. Auch bei Pagination zuerst einmal laden und nur bei einer nötigen Seitenkorrektur einmal gezielt nachladen.
 - Deshalb gilt: Daten direkt in `$D` laden und im Template darauf zugreifen, **keine Kopien in Hilfsarrays** (`$R['PageEdit'] = [...]`) bauen. Ein neues Feld im Pattern ist dann ohne Änderung an der PHP-Seite im Template verfügbar (z.B. `DateTimeOriginal`).
 - Filtern, was angezeigt wird, macht das **Template** (z.B. nur aktive Bilder per `{if $img.Active|default:1}`), nicht die PHP-Seite. Die PHP-Seite reicht `Active` & Co. unverändert durch.
-- Abfragen in einer eigenen Variable anlegen (`$f`), nicht in der globalen `$F`: `start.php` fragt am Ende mit `$F` die Core-Datenbank ab.
+- Bestehende Filterstruktur beibehalten: `$F` wie im vorhandenen Code schrittweise ueber Array-Pfade aufbauen, nicht fuer jeden Filter eine eigene Variable oder ein tief verschachteltes Array einfuehren. Da `start.php` `$F` anschliessend fuer die Core-Datenbank nutzt, die verwendeten Modulfilter danach wieder entfernen.
+- Beispiele fuer direkte Verarbeitung und Filteraufbau: [admin__article.list.php](../system/vendor/fremeo/shop/system/admin__article.list.php) und [admin__attribute_set.list.php](../system/vendor/fremeo/shop/system/admin__attribute_set.list.php). Berechtigungen und Schutzregeln sind je nach Seite weiterhin zu beruecksichtigen.
 
 ## 2. `$R` für alles außerhalb der Datenstruktur
 
@@ -74,19 +74,28 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 
 ## 3. Eingaben aus dem Formular
 
-- Dem Formular nie vertrauen: **nie die ganze Anfrage** in die Datenbank schreiben (`set_object($D)` mit `$D` aus dem POST ist verboten). Einen Update-Baum `$U` aus erlaubten Feldern bauen und `set_object($U)` aufrufen.
+- **Minimaler Speicherweg ist verbindlich:** Bei einfachen Pattern-Formularen genuegen die Aktionspruefung und `$C['<modul>']['CData']->set_object($D)`. Keine vorsorglichen rekursiven Validierungsschleifen, Feld-Whitelists, Typkopien oder `throw new`-Pruefungen davor setzen. Eine konkret benoetigte Fachregel ist gesondert zu klaeren; bestehende Berechtigungspruefungen und ausdruecklich vorhandene Schutzregeln bleiben erhalten.
+- **Keine Interpretation als Zusatzauftrag:** Nicht verlangte Funktionen, Uploadwege, Meldungen oder Fehlerfaelle nicht eigenmaechtig ergaenzen. Bei einer Pattern-Anpassung bestehende Anordnung und Bedienung erhalten; keine neuen Karten, Item-Rahmen oder Unterdialoge erfinden. `input.tpl` uebernimmt die Aenderungserkennung und unterdrueckt unveraenderte Felder; keine zweite allgemeine Filter-/Speicherlogik dafuer bauen.
+- **Standard fuer neue und ueberarbeitete CData-Formulare:** Geaenderte Felder und Unterdaten direkt als Pattern-Teilbaum `D[...]` senden und in der Speicheraktion `set_object($D)` aufrufen. Keinen vollstaendigen Datenbaum aufbauen oder den bisherigen Bestand nur zur Zusammenfuehrung vor dem Speichern laden. Ein eigener Update-Baum oder eine Bestandsabfrage nur bei fachlicher Notwendigkeit, z.B. fuer Kollisionspruefungen.
+- Ein Teilbaum genügt: `D[ATTRIBUTE][D][XX][Active]=1` ändert nur dieses Feld; nicht übergebene Felder und Unterdaten bleiben erhalten. Leere Feldwerte und Löschmarker wirken ausdrücklich als Löschung; Ausnahmen wie `ForeignKey=1` beachten.
+- Formularpfade bleiben beim vorgegebenen Pattern mit `<TYP>[D][<Id>]`. Keine neuen Transportzweige oder CData-Erweiterungen fuer eine Seitenanpassung einfuehren. Zusammengehoerige dynamische Felder erhalten ihre gemeinsame ID bei Bedarf per JavaScript; vorhandene IDs beibehalten.
+- Bibliotheken wie CData bei Arbeiten an anderen Modulen niemals automatisch erweitern. Bei einem triftigen Grund diesen zuerst erlaeutern, nachfragen und die ausdrueckliche Zustimmung abwarten. Auch genehmigte Erweiterungen muessen allgemein wiederverwendbar sein und duerfen niemals speziell auf ein einzelnes Modul zugeschnitten werden.
+- Bestehende Funktionen und Schutzmechanismen nicht beschaedigen, abschwaechen oder umgehen, um neue Anforderungen zu erfuellen. Konflikte und technische Grenzen vor der Umsetzung offenlegen und das Vorgehen abstimmen. Bei aktiver Feldnamen-Security vollstaendige Feldpfade registrieren; keine lesbaren Restpfade an gehashte Praefixe anhaengen.
+- Loeschungen nach Moeglichkeit bereits als Datensatzwert `__DELETE__` im Pattern-Pfad senden, statt in PHP einen separaten Entwurfsbaum umzuwandeln. Das Frontend muss dabei nur geaenderte Zweige uebertragen, nicht den vollstaendigen Bestand.
 - IDs prüfen (`/^[A-Za-z0-9_-]+$/`), Sprach-Codes prüfen (`/^[A-Za-z]{2,8}$/`). Werte, die in Kommandozeilen oder Pfade gelangen, immer validieren.
-- Was `CData::set_object` selbst übernimmt: nur Typen und Felder aus dem Pattern (Unbekanntes wird ignoriert) und **IDs werden escaped** (auch beim Löschen und im Cache). Der `Type` im Pattern (`number`, `checkbox`, `id`) wird von `set_object` **noch nicht** geprüft, ein Wert wie `'abc'` in einem `number`-Feld wird gespeichert. Das ist offen und bis zur Entscheidung Aufgabe der Seite (`(int)`, Regex).
-- Was `set_object` **nicht** übernimmt, bleibt Aufgabe der Seite: Werte gegen den Typ prüfen (siehe oben), welche Felder ein Formular schreiben darf (Felder, die der Server vergibt wie `LINK`, `FileId`, `Password`), Löschbefehle (`__DELETE__`, `Active = -2`) aus dem Formular, Berechtigungen und inhaltliche Regeln.
-- Gepostete Daten nach dem Speichern aus `$D` entfernen (`unset($D['PAGE'])`) und aus der Datenbank neu laden, damit Eingabe und gespeicherte Daten nie vermischt werden. Das gilt auch im Frontend (`unset($D['ALBUM'])` vor `get_object`), sonst kann ein Besucher Daten einschleusen.
-- Das Formular sendet **nur geänderte Felder** (`ischanged`, siehe `input.tpl`). Fehlt ein Feld im POST, heißt das "unverändert", nicht "leer". Ein gesendetes leeres Feld ist eine bewusste Änderung.
-- Ändernde Aktionen (speichern, löschen, installieren) nur per **POST** und nur bei `$D['ACTION'] == 'save'`, nie über Links (GET).
-- Geheimnisse (Passwort) vor dem Template aus `$D` entfernen (`unset($A['Password'])`). Bei gesperrten Inhalten auch die Unterdaten (`IMAGE`) entfernen.
+- Was `CData::set_object` selbst übernimmt: nur Typen und Felder aus dem Pattern (Unbekanntes wird ignoriert) und **IDs werden escaped** (auch beim Löschen und im Cache). `checkbox` und `bool` normalisieren `1`, `'1'` und `true` zu `1`, `0`, `'0'`, `false` und andere Werte außer `null`, `''`, `'__DELETE__'` zu `0`. Diese drei Ausnahmen löschen normalerweise das Feld; bei `ForeignKey=1` werden `''` und `'__DELETE__'` gespeichert. `Active=true` kann wegen der Datensatz-Löschprüfung vor der Normalisierung den Datensatz löschen; Formulare senden hier `1`/`0`. Die übrigen Pattern-Typen wie `number` und `id` werden noch nicht auf ihren Wert geprüft.
+- Pflichtfelder im Formular werden vom Browser geprueft. `CData::set_object` erzwingt derzeit keine Pflichtfeldregeln; ein direkter Request kann die Browserpruefung umgehen. Unbekannte Felder filtert CData anhand des Patterns, aber im Pattern vorhandene geschuetzte Felder und Loeschmarker muessen weiterhin durch die Seite begrenzt werden.
+- Keine individuellen seitenbezogenen CSRF-/Security-Token einbauen; ein spaeteres Security-Konzept soll diese Aufgaben zentral behandeln. Die Feldnamen-Security ist derzeit abschaltbar; das globale Konzept und eine dauerhafte Aktivierung sind noch nicht umgesetzt. Bestehende Berechtigungspruefungen und zweckgebundene Upload-Token bleiben davon unberuehrt.
+- Was `set_object` **nicht** übernimmt, bleibt soweit erforderlich Aufgabe der Seite: Typpruefung ausser `checkbox` und `bool`, welche geschuetzten Felder ein Formular schreiben darf (z.B. `LINK`, `FileId`, `Password`), Loeschbefehle (`__DELETE__`, `Active = -2`), Berechtigungen und inhaltliche Regeln.
+- Bei einem Redirect nach dem Speichern den Request direkt beenden; der folgende GET laedt die Daten neu. Ohne Redirect im selben Request neu laden: `get_object` ergaenzt `$D`, deshalb bei Bedarf den betroffenen Zweig vorher entfernen, damit insbesondere geloeschte Daten nicht stehen bleiben. Fuer AJAX-Antworten den benoetigten Datenbaum im selben Request korrekt neu laden.
+- Beim regulären Formular-Submit deaktiviert `input.tpl` Felder mit unverändertem `ischanged`-Status. Fehlt ein Feld im Request, bedeutet das "unverändert"; ein gesendetes leeres Feld ist eine bewusste Änderung. Eigene AJAX-Speicherwege müssen ihr Sendeverhalten ausdrücklich berücksichtigen.
+- Fuer einfache Speicheraktionen genuegt die vorhandene Aktionspruefung, z.B. `($D['ACTION'] ?? null) === 'save'`; keine zusaetzliche Pruefung der HTTP-Methode nur aus Gewohnheit. GET ist damit ebenfalls moeglich und kann etwa durch Vorabrufe ausgeloest werden; wo Schutz vor unbeabsichtigten Aktionen erforderlich ist, die Methode bewusst einschraenken.
+- Geheimnisse (z.B. Passwörter) vor der Template-Ausgabe aus dem jeweiligen Datenzweig entfernen. Bei gesperrten Inhalten auch die Unterdaten (`IMAGE`) entfernen.
 
 ## 4. Löschen
 
-- Löschen-Button je Zeile blendet die Zeile nur aus und aktiviert ein verstecktes Feld `D[<TYP>][D][<Id>][__DELETE__]=1`. Entfernt wird erst beim Speichern ("Löschen erfolgt erst beim Speichern"), vorher fragt `confirm()` nach.
-- Der Server löscht mit `'__DELETE__'` im Update-Baum und räumt Abhängiges mit auf: SEO-Links (`$C['Link']->deleteById`), Dateien (`$File->delete`, nur wenn nirgends sonst verwendet).
+- Standard: Löschaktion bestätigen, im Formular markieren und erst beim Speichern ausführen. Für CData den Datensatzwert auf `'__DELETE__'` setzen; bei einem separaten `__DELETE__=1`-Flag muss die Seite dieses vor `set_object` umwandeln. Abweichende sofortige Aktionen nur bei entsprechender Anforderung.
+- Zugehörige SEO-Links oder Dateien nur nach fachlicher Regel bereinigen; Dateien nur löschen, wenn sie nicht anderweitig verwendet werden.
 
 ## 5. Datenbank, Patterns, Dateien, Links
 
@@ -95,6 +104,7 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - **SEO-Links** nur über `$C['Link']` (`create`, `rename`, `deleteById`, `getById`, `normalize`). Ist eine URL vergeben, hängt `Link` selbst `_1`, `_2` ... an, auch bei der leeren URL (Startseite). Geprüft wird über alle Module.
 - Der Vorschlag der SEO-URL aus dem Titel entsteht per **JS im Template** (Feld als geändert markieren mit `input_onmouseout(el)`), der Server erzeugt sie nicht aus dem Titel. Leeres, gesendetes Feld = Startseite.
 - Zeitangaben als **Unix-Timestamp** (Zahl) speichern, Format erst im Template (`{date('d.m.Y H:i:s', (int)$x)}`). Ein Datum nie durch den Upload-Zeitpunkt ersetzen, wenn es aus den Daten gelesen werden soll (EXIF `DateTimeOriginal`, sonst Dateidatum des Browsers, sonst kein Wert).
+- Werden neue Datensatz-IDs mit CRC32 erzeugt, dafuer einen Timestamp statt eines Zufallswerts verwenden und Kollisionen im jeweiligen ID-Bereich pruefen. CRC32 ist kein Sicherheits-Token; bestehende Hashes fuer andere Zwecke bleiben unveraendert.
 - Datenbanken wachsen per Pattern, Änderungen an bestehenden Daten laufen über Migrationen (`system/migration/*.php`).
 
 ## 6. Seiten und Templates
@@ -104,13 +114,14 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - Ausgabe immer escapen (`|escape`), auch in `data-`-Attributen und JavaScript-Strings (`|escape:'javascript'`).
 - Fehlende Felder im Template mit `|default:''` abfangen (nicht gesetzte Felder fehlen im `$D`).
 - Formularelemente bevorzugt ueber `{input p=[...]}`; der Name spiegelt das Pattern (`D[PAGE][D][{$id}][Title]`). Fehlt ein Element oder muss `input.tpl` erweitert werden, vor einer Erweiterung oder eigenen Ersatzloesung den Benutzer nach dem gewuenschten Vorgehen fragen.
+- Bei dynamischen Pattern-Feldern kann ein registrierter Security-Praefix wie `D[ATTRIBUTE]` beim Versand um die uebrigen Pfadteile erweitert werden. Die sichtbaren Feldnamen bleiben vollstaendige `D[...]`-Patternpfade; nach der Security-Aufloesung liegt der Datenbaum in `$D`. Dynamische IDs und schreibbare Felder weiterhin serverseitig pruefen.
 - JavaScript in `{literal}...{/literal}`. Zähler (z.B. angezeigte Bilder) im Template mit Smarty-Variablen führen, wenn das Template selbst filtert.
 - Bibliotheken (`type: library`) haben weder Tabs noch Templates und kommen in Admin-Listen nicht vor.
 - Moduluebergreifende Verwaltungsseiten (z.B. Einstellungen und Sprachvariablen) greifen nur auf aktive Module zu: deaktivierte Module besitzen keine initialisierten Dienste. Ihre gespeicherten Werte bleiben erhalten und werden nach dem Aktivieren wieder angezeigt.
 
 ### Verbindliche Aktionsleiste im Backend
 
-- Backend-Tabellen, Listen und andere Formulare erhalten eine dauerhaft sichtbare untere Aktionsleiste wie in `admin__menu.list.tpl`. Sie liegt im Block `inner_footer` ausserhalb des scrollbaren Inhalts (`inner-frame`), reserviert ihren eigenen Platz und verdeckt auch am Scrollende keine Zeilen oder Eingaben. Kein schwebendes Overlay mit `position: fixed`.
+- Backend-Tabellen, Listen und Seitenformulare erhalten eine dauerhaft sichtbare untere Aktionsleiste wie in `admin__menu.list.tpl`. Sie liegt im Block `inner_footer` ausserhalb des scrollbaren Inhalts (`inner-frame`), reserviert ihren eigenen Platz und verdeckt auch am Scrollende keine Zeilen oder Eingaben. Kein schwebendes Overlay mit `position: fixed`. Dialogformulare verwenden ihre Aktionen im Fenster (siehe Gemeinsames Admin-Fenster).
 - Dies gilt ebenso fuer Bearbeitungsformulare aller Module (z.B. Gallery-Album bearbeiten), nicht nur fuer Core-Seiten. Keine zusaetzlichen Speichern-/Abbrechen-Buttons am Ende des scrollbaren Formularinhalts. Externe Submit-Buttons muessen auch Formularvalidierung, Upload-Warteschlangen und deren Sperr-/Wiederholungsverhalten unveraendert ausloesen.
 - **Links:** Speichern und Abbrechen. Speichern ist mit dem zugehoerigen Formular ueber `type="submit"` und `form="<formular-id>"` verbunden. Abbrechen verwirft ungespeicherte Eingaben ohne Speichern oder Loeschen.
 - **Rechts:** je nach Seite Paging, Filter oder weitere formularbezogene Funktionen. Filter und andere Aktionen duerfen nicht versehentlich das Speicherformular absenden; ihren Aktionstyp bzw. ihre Formularzuordnung explizit setzen.
@@ -129,11 +140,11 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 
 - Composer-Klasse und PHAR liegen ausschliesslich im Loader unter `setup/Composer.php` und `setup/composer.phar`, nie im Core oder als Laufzeitkopien im Cache. Core delegiert Composer-Aktionen ueber `PackageManager`; ohne Setup bleiben Paketliste und Anwendung nutzbar, nur Composer-Aktionen werden mit sichtbarem Hinweis gesperrt. Setup nicht waehrend laufender Paketaktionen ersetzen.
 - Das Setup lädt nur seine Kopie, das Projekt nur die des Cores.
-- In `composer.json` kein eigenes Top-Level-Feld `version` eintragen, auch nicht bei Child-Templates. Composer ermittelt die Paketversion aus Git-Tags bzw. dem VCS-Stand; Versionsbedingungen unter `require` bleiben erhalten. Die naechste SemVer-Version nur im Changelog fuehren und bis zum Release unveraendert sammeln; beim Taggen muessen Changelog-Version und Tag uebereinstimmen (z.B. `0.1.5` und `v0.1.5`). Patch fuer kompatible Fehlerkorrekturen, Minor fuer kompatible Funktionen, Major fuer inkompatible Aenderungen; bei `0.x` Kompatibilitaetsgrenzen ausdruecklich pruefen. Bestehende Tags nicht nachtraeglich verschieben.
-- Bei jeder Modulaenderung automatisch den Changelog aktualisieren; fehlt er, `CHANGELOG.md` im Modul erstellen. Aenderungen zunaechst unter `Unreleased`, beim Versions-/Release-Schritt unter der passenden Version mit Datum fuehren und vor dem Taggen mitcommitten. Vorhandenes Format respektieren und keine ungesicherte Historie erfinden.
+- In `composer.json` kein eigenes Top-Level-Feld `version` eintragen, auch nicht bei Child-Templates. Composer ermittelt die Paketversion aus Git-Tags bzw. dem VCS-Stand; Versionsbedingungen unter `require` bleiben erhalten. Nach dem letzten GitHub-Tag die naechste fortlaufende Version im Changelog fuehren und alle weiteren Aenderungen bis zum naechsten Tag dort sammeln; beim Taggen muessen Changelog-Version und Tag uebereinstimmen (z.B. `0.1.5` und `v0.1.5`). Kompatibilitaetsgrenzen bei `0.x` pruefen. Bestehende Tags nicht nachtraeglich verschieben.
+- Bei jeder Modulaenderung den Changelog im vorhandenen Format aktualisieren. Fuer Modul-Changelogs das Core-Format `CHANGELOG` mit Versionsabschnitt `#<Version>` ohne Zusatz und Legende verwenden; keine ungesicherte Historie erfinden.
 - Benoetigt eine Aenderung eine neuere Funktion, Datenstruktur oder einen neuen Template-Block eines anderen Moduls oder des Cores, muss dessen Mindestversion unter `require` in der `composer.json` des abhaengigen Moduls angehoben werden. Zuerst die Abhaengigkeit mit der benoetigten Version veroeffentlichen, danach das abhaengige Modul. Keine Versionsanhebung ohne tatsaechlichen Bedarf; kompatible Obergrenzen beibehalten (z.B. `>=0.1.5 <1.0`).
 - Vor einer Veroeffentlichung pruefen, dass Composer keine aeltere, funktional unzureichende Abhaengigkeit installieren kann. Ein vorhandenes `composer.lock` muss zum neuen Constraint passen; ein reines `composer install` aktualisiert einen veralteten Lock-Stand nicht automatisch.
-- Bei `0.0.x` bedeutet `^0.0.4` genau diese Version, deshalb die Spanne verwenden.
+- Bei `0.0.x` beschraenkt `^0.0.4` den Bereich auf `>=0.0.4 <0.0.5`; bei Bedarf eine passende explizite Spanne verwenden.
 
 ## 8. Tests
 
@@ -141,7 +152,7 @@ Wichtige Grundregel: Das Modul hat immer einen eigenen Bereich unter `system/`, 
 - Integrationstests binden die echte Seite ein (`include __DIR__ . '/../system/<name>.php'`) und arbeiten mit temporären Datenbanken (`sys_get_temp_dir()`), die im `tearDown` entfernt werden.
 - Gleichen Aufbau wie im Core verwenden: `$C`, `$D`, `$R` als Referenzen in einer Closure, `$D['R'] = &$R`.
 - Hilfsmethoden in Testklassen nicht `run()`, `runTest()` o.ä. nennen (final in `TestCase`).
-- Tests laufen mit `php phpunit.phar` im Modulordner.
+- PHPUnit ist im Core als Entwicklungsabhaengigkeit definiert. Im Loader-Projekt kann die Shop-Suite mit `php system\vendor\fremeo\core\vendor\phpunit\phpunit\phpunit --configuration system\vendor\fremeo\shop\phpunit.xml` ausgefuehrt werden; der Shop-Bootstrap laedt dabei den Autoloader des Projekts. Fehlt der Runner, die Core-Entwicklungsabhaengigkeiten aus dessen Lockfile mit Composer installieren.
 
 ## 9. Programmierstil
 
